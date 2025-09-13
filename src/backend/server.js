@@ -555,3 +555,167 @@ app.post('/workspaces', authenticateToken, authorizeRoles(['Admin']), (req, res)
         );
     });
 });
+
+// Get user's workspaces (with proper role-based access)
+app.get('/workspaces', authenticateToken, (req, res) => {
+    let query, params;
+
+    if (req.user.role === 'Admin') {
+        // Admins can see all workspaces
+        query = `
+            SELECT DISTINCT w.*, u.name as creator_name, u.surname as creator_surname,
+                   'Admin' as user_role,
+                   COUNT(e.id) as evidence_count,
+                   m.name as manager_name, m.surname as manager_surname
+            FROM workspaces w
+            LEFT JOIN users u ON w.created_by = u.id
+            LEFT JOIN evidence e ON w.id = e.workspace_id AND e.status = 'Active'
+            LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.role = 'Manager'
+            LEFT JOIN users m ON wm.user_id = m.id
+            GROUP BY w.id
+            ORDER BY w.updated_at DESC
+        `;
+        params = [];
+    } else {
+        // Managers and Analysts only see workspaces they're members of
+        query = `
+            SELECT DISTINCT w.*, u.name as creator_name, u.surname as creator_surname,
+                   wm.role as user_role,
+                   COUNT(e.id) as evidence_count,
+                   m.name as manager_name, m.surname as manager_surname
+            FROM workspaces w
+            LEFT JOIN users u ON w.created_by = u.id
+            LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+            LEFT JOIN evidence e ON w.id = e.workspace_id AND e.status = 'Active'
+            LEFT JOIN workspace_members wm2 ON w.id = wm2.workspace_id AND wm2.role = 'Manager'
+            LEFT JOIN users m ON wm2.user_id = m.id
+            WHERE wm.user_id = ?
+            GROUP BY w.id
+            ORDER BY w.updated_at DESC
+        `;
+        params = [req.user.id, req.user.id];
+    }
+
+    db.all(query, params, (err, rows) => {
+        if (err) {
+            console.error('Error fetching workspaces:', err);
+            return res.status(500).json({ error: 'Failed to fetch workspaces' });
+        }
+
+        res.json(rows || []);
+    });
+});
+
+// Get workspace details
+app.get('/workspaces/:id', authenticateToken, (req, res) => {
+    const workspaceId = req.params.id;
+
+    // Check if user has access to this workspace
+    const accessQuery = `
+        SELECT w.*, u.name as creator_name, u.surname as creator_surname,
+               wm.role as user_role
+        FROM workspaces w
+        LEFT JOIN users u ON w.created_by = u.id
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        WHERE w.id = ? AND (wm.user_id = ? OR ? = 'Admin')
+    `;
+
+    db.get(accessQuery, [req.user.id, workspaceId, req.user.id, req.user.role], (err, workspace) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (!workspace) {
+            return res.status(404).json({ error: 'Workspace not found or access denied' });
+        }
+
+        // Get workspace members
+        const membersQuery = `
+            SELECT wm.*, u.name, u.surname, u.email, u.role as user_system_role
+            FROM workspace_members wm
+            JOIN users u ON wm.user_id = u.id
+            WHERE wm.workspace_id = ?
+            ORDER BY wm.added_at DESC
+        `;
+
+        db.all(membersQuery, [workspaceId], (err, members) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch members' });
+            }
+
+            res.json({
+                ...workspace,
+                members: members || []
+            });
+        });
+    });
+});
+
+// Add member to workspace (Manager or Admin only, with restrictions)
+app.post('/workspaces/:id/members', authenticateToken, (req, res) => {
+    const workspaceId = req.params.id;
+    const { userId, role = 'Analyst' } = req.body;
+
+    // Check user's permission to add members
+    const checkQuery = `
+        SELECT wm.role as workspace_role, w.created_by, u.role as system_role
+        FROM workspaces w
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        LEFT JOIN users u ON u.id = ?
+        WHERE w.id = ?
+    `;
+
+    db.get(checkQuery, [req.user.id, req.user.id, workspaceId], (err, access) => {
+        if (err || !access) {
+            return res.status(404).json({ error: 'Workspace not found' });
+        }
+
+        // Determine if user can add members
+        const canManage = access.system_role === 'Admin' || 
+                         access.workspace_role === 'Manager';
+
+        if (!canManage) {
+            return res.status(403).json({ error: 'Only workspace managers can add members' });
+        }
+
+        // Managers can only add Analysts, not other Managers
+        if (access.system_role !== 'Admin' && role === 'Manager') {
+            return res.status(403).json({ error: 'Only Admins can assign Manager roles' });
+        }
+
+        // Check if user exists and is approved
+        db.get("SELECT id, name, surname, email, role FROM users WHERE id = ? AND approved = 1", [userId], (err, user) => {
+            if (err || !user) {
+                return res.status(404).json({ error: 'User not found or not approved' });
+            }
+
+            // Add member to workspace
+            db.run(
+                "INSERT INTO workspace_members (workspace_id, user_id, role, added_by) VALUES (?, ?, ?, ?)",
+                [workspaceId, userId, role, req.user.id],
+                function(err) {
+                    if (err) {
+                        if (err.message.includes('UNIQUE constraint failed')) {
+                            return res.status(409).json({ error: 'User is already a member of this workspace' });
+                        }
+                        return res.status(500).json({ error: 'Failed to add member' });
+                    }
+
+                    logAudit(req.user.id, workspaceId, null, 'ADD_MEMBER', 
+                           `Added ${user.name} ${user.surname} as ${role}`, req);
+
+                    res.json({
+                        message: 'Member added successfully',
+                        member: {
+                            id: userId,
+                            name: user.name,
+                            surname: user.surname,
+                            email: user.email,
+                            role: role
+                        }
+                    });
+                }
+            );
+        });
+    });
+});
