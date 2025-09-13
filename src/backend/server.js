@@ -719,3 +719,175 @@ app.post('/workspaces/:id/members', authenticateToken, (req, res) => {
         });
     });
 });
+
+// Get available users for adding to workspace (Manager and Admin)
+app.get('/workspaces/:id/available-users', authenticateToken, (req, res) => {
+    const workspaceId = req.params.id;
+
+    // Check if user can manage this workspace
+    const checkQuery = `
+        SELECT wm.role as workspace_role, w.created_by, u.role as system_role
+        FROM workspaces w
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        LEFT JOIN users u ON u.id = ?
+        WHERE w.id = ?
+    `;
+
+    db.get(checkQuery, [req.user.id, req.user.id, workspaceId], (err, access) => {
+        if (err || !access) {
+            return res.status(404).json({ error: 'Workspace not found' });
+        }
+
+        const canManage = access.system_role === 'Admin' || 
+                         access.workspace_role === 'Manager';
+
+        if (!canManage) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+
+        // Get users not already in this workspace
+        const availableUsersQuery = `
+            SELECT u.id, u.name, u.surname, u.email, u.role
+            FROM users u
+            WHERE u.approved = 1 
+            AND u.id NOT IN (
+                SELECT wm.user_id 
+                FROM workspace_members wm 
+                WHERE wm.workspace_id = ?
+            )
+            AND u.id != ?
+            ORDER BY u.name, u.surname
+        `;
+
+        db.all(availableUsersQuery, [workspaceId, req.user.id], (err, users) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch available users' });
+            }
+            res.json(users || []);
+        });
+    });
+});
+
+// Remove member from workspace
+app.delete('/workspaces/:id/members/:userId', authenticateToken, (req, res) => {
+    const workspaceId = req.params.id;
+    const userId = req.params.userId;
+
+    // Check permissions (same as add member)
+    const checkQuery = `
+        SELECT wm.role, w.created_by
+        FROM workspaces w
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        WHERE w.id = ?
+    `;
+
+    db.get(checkQuery, [req.user.id, workspaceId], (err, access) => {
+        if (err || !access) {
+            return res.status(404).json({ error: 'Workspace not found' });
+        }
+
+        const canManage = access.created_by === req.user.id || 
+        access.role === 'Admin' || access.workspace_role === 'Manager';
+
+        if (!canManage) {
+            return res.status(403).json({ error: 'Insufficient permissions to remove members' });
+        }
+
+        // Cannot remove workspace managers (only Admins can do that)
+        db.get("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?", 
+            [workspaceId, userId], (err, member) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database error' });
+            }
+
+            if (!member) {
+                return res.status(404).json({ error: 'Member not found in workspace' });
+            }
+
+            // Only Admins can remove Managers
+            if (member.role === 'Manager' && access.system_role !== 'Admin') {
+                return res.status(403).json({ error: 'Only Admins can remove workspace managers' });
+            }
+
+            db.run(
+                "DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+                [workspaceId, userId],
+                function(err) {
+                    if (err) {
+                        return res.status(500).json({ error: 'Failed to remove member' });
+                    }
+
+                    if (this.changes === 0) {
+                        return res.status(404).json({ error: 'Member not found in workspace' });
+                    }
+
+                    logAudit(req.user.id, workspaceId, null, 'REMOVE_MEMBER', `Removed member ID: ${userId}`, req);
+
+                    res.json({ message: 'Member removed successfully' });
+                }
+            );
+        });
+    });
+});
+
+// Evidence Management Endpoints
+                 
+// Configure multer for evidence uploads
+const evidenceStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, 'uploads', 'evidence'));
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
+});
+
+const evidenceUpload = multer({
+    storage: evidenceStorage,
+    limits: {
+        fileSize: 100 * 1024 * 1024, // 100MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Allow common evidence file types
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff',
+            'application/pdf', 'text/plain', 'text/csv',
+            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
+            'video/mp4', 'video/avi', 'video/mov', 'audio/mp3', 'audio/wav'
+        ];
+
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('File type not allowed for evidence upload'), false);
+        }
+    }
+});
+
+// File encryption functions
+function encryptFile(filePath, encryptionKey) {
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.scryptSync(encryptionKey, 'salt', 32);
+    const iv = crypto.randomBytes(16);
+    
+    const cipher = crypto.createCipher(algorithm, key);
+    const input = fs.createReadStream(filePath);
+    const encryptedPath = `${filePath}.enc`;
+    const output = fs.createWriteStream(encryptedPath);
+    
+    return new Promise((resolve, reject) => {
+        output.write(iv);
+        input.pipe(cipher).pipe(output);
+        
+        output.on('finish', () => {
+            // Remove original file
+            fs.unlinkSync(filePath);
+            resolve(encryptedPath);
+        });
+        
+        output.on('error', reject);
+    });
+}
