@@ -1153,3 +1153,106 @@ const handleFileEndpoint = (fileType) => {
         }
     };
 };
+
+// File endpoints
+app.all('/images', authenticateToken, handleFileEndpoint('images'));
+app.all('/documents', authenticateToken, handleFileEndpoint('documents'));
+app.all('/confidential', authenticateToken, handleFileEndpoint('confidential'));
+
+// Analytics endpoint
+app.get('/analytics', authenticateToken, authorizeRoles(['Admin', 'Manager']), (req, res) => {
+    db.all(
+        `SELECT 
+    al.*,
+    u.name,
+    u.surname,
+    u.email,
+    u.role
+    FROM access_logs al
+    LEFT JOIN users u ON al.user_id = u.id
+    ORDER BY al.timestamp DESC
+    LIMIT 1000`,
+        [],
+        (err, logs) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch analytics data' });
+            }
+
+            // Simple anomaly detection algorithm
+            const anomalies = detectAnomalies(logs);
+
+            logAccess(req.user.id, '/analytics', 'GET', req.ip, req.get('User-Agent'), true);
+
+            res.json({
+                logs: logs,
+                anomalies: anomalies,
+                statistics: generateStatistics(logs)
+            });
+        }
+    );
+});
+
+// Simple rule-based anomaly detection
+function detectAnomalies(logs) {
+    const anomalies = [];
+    const userActivity = {};
+    const ipActivity = {};
+
+    logs.forEach(log => {
+        // Track failed login attempts
+        if (log.endpoint === '/login' && !log.success) {
+            const key = `${log.ip_address}_${log.user_id || 'unknown'}`;
+            if (!userActivity[key]) {
+                userActivity[key] = { failures: 0, timestamps: [] };
+            }
+            userActivity[key].failures++;
+            userActivity[key].timestamps.push(new Date(log.timestamp));
+        }
+
+        // Track IP activity
+        if (!ipActivity[log.ip_address]) {
+            ipActivity[log.ip_address] = 0;
+        }
+        ipActivity[log.ip_address]++;
+    });
+
+    // Detect brute force attempts (>5 failed logins in 15 minutes)
+    Object.keys(userActivity).forEach(key => {
+        const activity = userActivity[key];
+        if (activity.failures >= 5) {
+            const timeSpan = Math.max(...activity.timestamps) - Math.min(...activity.timestamps);
+            if (timeSpan <= 15 * 60 * 1000) { // 15 minutes in milliseconds
+                anomalies.push({
+                    type: 'Brute Force Attack',
+                    severity: 'High',
+                    description: `${activity.failures} failed login attempts from ${key.split('_')[0]} in 15 minutes`,
+                    timestamp: Math.max(...activity.timestamps)
+                });
+            }
+        }
+    });
+
+    return anomalies;
+}
+
+// Generate statistics
+function generateStatistics(logs) {
+    const stats = {
+        totalRequests: logs.length,
+        successfulRequests: logs.filter(log => log.success).length,
+        failedRequests: logs.filter(log => !log.success).length,
+        uniqueUsers: new Set(logs.map(log => log.user_id).filter(id => id)).size,
+        uniqueIPs: new Set(logs.map(log => log.ip_address)).size,
+        endpointStats: {},
+        hourlyActivity: {}
+    };
+
+    return stats;
+}
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`🚀 ForensicLink Server running on port ${PORT}`);
+    console.log(`📧 Admin login: admin@forensiclink.com`);
+    console.log(`🔑 Admin password: forensiclink2024`);
+});
