@@ -54,3 +54,93 @@ directories.forEach(dir => {
 
 // Database setup
 const db = new sqlite3.Database('forensiclink.db');
+
+db.serialize(() => {
+    // Users table
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        surname TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'Analyst',
+        approved BOOLEAN DEFAULT FALSE,
+        mfa_enabled BOOLEAN DEFAULT FALSE,
+        mfa_secret TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Workspaces table
+    db.run(`CREATE TABLE IF NOT EXISTS workspaces (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        case_number TEXT UNIQUE,
+        created_by INTEGER NOT NULL,
+        status TEXT DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users (id)
+    )`);
+
+    // Workspace members table
+    db.run(`CREATE TABLE IF NOT EXISTS workspace_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        role TEXT DEFAULT 'Analyst',
+        added_by INTEGER NOT NULL,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id),
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (added_by) REFERENCES users (id),
+        UNIQUE(workspace_id, user_id)
+    )`);
+
+    // Evidence table
+    db.run(`CREATE TABLE IF NOT EXISTS evidence (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        original_filename TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_hash TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        uploaded_by INTEGER NOT NULL,
+        description TEXT,
+        tags TEXT,
+        status TEXT DEFAULT 'Active',
+        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id),
+        FOREIGN KEY (uploaded_by) REFERENCES users (id)
+    )`);
+
+    // Audit logs table
+    db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        workspace_id INTEGER,
+        evidence_id INTEGER,
+        action TEXT NOT NULL,
+        details TEXT,
+        ip_address TEXT NOT NULL,
+        user_agent TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id),
+        FOREIGN KEY (evidence_id) REFERENCES evidence (id)
+    )`);
+
+    // Access logs table
+    db.run(`CREATE TABLE IF NOT EXISTS access_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        endpoint TEXT NOT NULL,
+        method TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        user_agent TEXT,
+        success BOOLEAN NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )`);
