@@ -461,3 +461,97 @@ app.post('/manage/revoke', authenticateToken, authorizeRoles(['Admin']), (req, r
         }
     );
 });
+
+// Assign role
+app.post('/manage/role', authenticateToken, authorizeRoles(['Admin']), (req, res) => {
+    const { userId, role } = req.body;
+
+    if (!['Admin', 'Manager', 'Analyst'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    db.run(
+        "UPDATE users SET role = ? WHERE id = ?",
+        [role, userId],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to assign role' });
+            }
+
+            logAccess(req.user.id, '/manage/role', 'POST', req.ip, req.get('User-Agent'), true);
+            res.json({ message: 'Role assigned successfully' });
+        }
+    );
+});
+
+// Get available managers (Admin only)
+app.get('/managers', authenticateToken, authorizeRoles(['Admin']), (req, res) => {
+    db.all(
+        "SELECT id, name, surname, email FROM users WHERE role = 'Manager' AND approved = 1 ORDER BY name, surname",
+        [],
+        (err, managers) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch managers' });
+            }
+            res.json(managers || []);
+        }
+    );
+});
+
+// Create workspace (Admin only, with manager assignment)
+app.post('/workspaces', authenticateToken, authorizeRoles(['Admin']), (req, res) => {
+    const { name, description, case_number, assigned_manager } = req.body;
+
+    if (!name || name.trim().length < 3) {
+        return res.status(400).json({ error: 'Workspace name must be at least 3 characters' });
+    }
+
+    if (!assigned_manager) {
+        return res.status(400).json({ error: 'Manager assignment is required' });
+    }
+
+    // Verify the assigned manager exists and has Manager role
+    db.get("SELECT id, role FROM users WHERE id = ? AND approved = 1", [assigned_manager], (err, manager) => {
+        if (err || !manager) {
+            return res.status(404).json({ error: 'Manager not found or not approved' });
+        }
+
+        if (manager.role !== 'Manager') {
+            return res.status(400).json({ error: 'Assigned user must have Manager role' });
+        }
+
+        db.run(
+            "INSERT INTO workspaces (name, description, case_number, created_by) VALUES (?, ?, ?, ?)",
+            [name.trim(), description || '', case_number || null, req.user.id],
+            function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        return res.status(409).json({ error: 'Case number already exists' });
+                    }
+                    return res.status(500).json({ error: 'Failed to create workspace' });
+                }
+
+                // Add the assigned manager to the workspace with Manager role
+                db.run(
+                    "INSERT INTO workspace_members (workspace_id, user_id, role, added_by) VALUES (?, ?, ?, ?)",
+                    [this.lastID, assigned_manager, 'Manager', req.user.id],
+                    (err) => {
+                        if (err) {
+                            console.error('Error adding manager to workspace:', err);
+                            return res.status(500).json({ error: 'Failed to assign manager to workspace' });
+                        }
+
+                        logAudit(req.user.id, this.lastID, null, 'CREATE_WORKSPACE', 
+                               `Created workspace: ${name}, assigned manager ID: ${assigned_manager}`, req);
+                        
+                        res.status(201).json({
+                            message: 'Workspace created and manager assigned successfully',
+                            workspaceId: this.lastID,
+                            name: name
+                        });
+                    }
+                );
+            }
+        );
+    });
+});
