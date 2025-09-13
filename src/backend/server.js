@@ -891,3 +891,265 @@ function encryptFile(filePath, encryptionKey) {
         output.on('error', reject);
     });
 }
+
+function calculateFileHash(filePath) {
+return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    
+    stream.on('data', data => hash.update(data));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+});
+}
+
+// Upload evidence to workspace
+app.post('/workspaces/:id/evidence', authenticateToken, evidenceUpload.single('file'), async (req, res) => {
+const workspaceId = req.params.id;
+const { description, tags } = req.body;
+
+if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+}
+
+try {
+    // Check workspace access
+    const accessQuery = `
+        SELECT wm.role, w.created_by
+        FROM workspaces w
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        WHERE w.id = ? AND (wm.user_id = ? OR ? = 'Admin')
+    `;
+
+    db.get(accessQuery, [req.user.id, workspaceId, req.user.id, req.user.role], async (err, access) => {
+        if (err || !access) {
+            // Clean up uploaded file
+            fs.unlinkSync(req.file.path);
+            return res.status(404).json({ error: 'Workspace not found or access denied' });
+        }
+
+        try {
+            // Calculate file hash before encryption
+            const fileHash = await calculateFileHash(req.file.path);
+            
+            // Encrypt the file
+            const encryptedPath = await encryptFile(req.file.path, ENCRYPTION_KEY);
+            
+            // Store evidence metadata in database
+            db.run(
+                `INSERT INTO evidence (workspace_id, filename, original_filename, file_path, file_size, 
+                file_hash, mime_type, uploaded_by, description, tags) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    workspaceId,
+                    req.file.filename,
+                    req.file.originalname,
+                    encryptedPath,
+                    req.file.size,
+                    fileHash,
+                    req.file.mimetype,
+                    req.user.id,
+                    description || '',
+                    tags || ''
+                ],
+                function(err) {
+                    if (err) {
+                        console.error('Database error:', err);
+                        // Clean up encrypted file
+                        fs.unlinkSync(encryptedPath);
+                        return res.status(500).json({ error: 'Failed to save evidence metadata' });
+                    }
+
+                    logAudit(req.user.id, workspaceId, this.lastID, 'UPLOAD_EVIDENCE', 
+                        `Uploaded: ${req.file.originalname}`, req);
+
+                    res.status(201).json({
+                        message: 'Evidence uploaded successfully',
+                        evidenceId: this.lastID,
+                        filename: req.file.originalname,
+                        fileHash: fileHash,
+                        size: req.file.size
+                    });
+                }
+            );
+        } catch (error) {
+            console.error('File processing error:', error);
+            // Clean up file if it exists
+            if (fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
+            res.status(500).json({ error: 'Failed to process uploaded file' });
+        }
+    });
+} catch (error) {
+    console.error('Upload error:', error);
+    // Clean up uploaded file
+    if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Upload failed' });
+}
+});
+
+// Get evidence for workspace
+app.get('/workspaces/:id/evidence', authenticateToken, (req, res) => {
+    const workspaceId = req.params.id;
+
+    // Check workspace access
+    const accessQuery = `
+        SELECT wm.role, w.created_by
+        FROM workspaces w
+        LEFT JOIN workspace_members wm ON w.id = wm.workspace_id AND wm.user_id = ?
+        WHERE w.id = ? AND (wm.user_id = ? OR ? = 'Admin')
+    `;
+
+    db.get(accessQuery, [req.user.id, workspaceId, req.user.id, req.user.role], (err, access) => {
+        if (err || !access) {
+            return res.status(404).json({ error: 'Workspace not found or access denied' });
+        }
+
+        // Get evidence list
+        const evidenceQuery = `
+            SELECT e.*, u.name as uploader_name, u.surname as uploader_surname
+            FROM evidence e
+            JOIN users u ON e.uploaded_by = u.id
+            WHERE e.workspace_id = ? AND e.status = 'Active'
+            ORDER BY e.uploaded_at DESC
+        `;
+
+        db.all(evidenceQuery, [workspaceId], (err, evidence) => {
+            if (err) {
+                console.error('Error fetching evidence:', err);
+                return res.status(500).json({ error: 'Failed to fetch evidence' });
+            }
+
+            res.json(evidence || []);
+        });
+    });
+});
+
+// Legacy file handling endpoints
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const type = req.path.split('/')[1];
+        cb(null, `uploads/${type}/`);
+    },
+    filename: (req, file, cb) => {
+        cb(null, uuidv4() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
+// Permission checking function
+const hasPermission = (userRole, fileType, action) => {
+    const permissions = {
+        Admin: {
+            images: ['create', 'read', 'write', 'delete', 'list'],
+            documents: ['create', 'read', 'write', 'delete', 'list'],
+            confidential: ['create', 'read', 'write', 'delete', 'list']
+        },
+        Manager: {
+            images: ['create', 'read', 'write', 'delete', 'list'],
+            documents: ['create', 'read', 'write', 'delete', 'list'],
+            confidential: ['create', 'read', 'write', 'list']
+        },
+        Analyst: {
+            images: ['create', 'read', 'write', 'list'],
+            documents: ['create', 'read', 'write', 'list'],
+            confidential: ['read', 'list']
+        }
+    };
+
+    return permissions[userRole] && permissions[userRole][fileType] && permissions[userRole][fileType].includes(action);
+};
+
+// Generic file handling endpoint
+const handleFileEndpoint = (fileType) => {
+    return async (req, res) => {
+        let action;
+        if (req.body.action)
+            action = req.body.action
+        else
+            action = req.query.action
+
+        if (!hasPermission(req.user.role, fileType, action)) {
+            logAccess(req.user.id, `/${fileType}`, req.method, req.ip, req.get('User-Agent'), false);
+            return res.status(403).json({ error: 'Insufficient permissions for this action' });
+        }
+
+        try {
+            switch (action) {
+                case 'list':
+                    db.all(
+                        "SELECT id, original_name, created_at, created_by FROM files WHERE type = ?",
+                        [fileType],
+                        (err, files) => {
+                            if (err) {
+                                return res.status(500).json({ error: 'Failed to list files' });
+                            }
+                            logAccess(req.user.id, `/${fileType}`, req.method, req.ip, req.get('User-Agent'), true);
+                            res.json(files);
+                        }
+                    );
+                    break;
+
+                case 'create':
+                    if (fileType === 'confidential') {
+                        const { filename, content } = req.body;
+                        const filePath = path.join('uploads/confidential', `${uuidv4()}.txt`);
+                        const encryptedContent = encrypt(content);
+                        
+                        fs.writeFileSync(filePath, encryptedContent);
+
+                        db.run(
+                            "INSERT INTO files (filename, original_name, type, path, encrypted, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+                            [path.basename(filePath), filename, fileType, filePath, true, req.user.id],
+                            function (err) {
+                                if (err) {
+                                    return res.status(500).json({ error: 'Failed to create file' });
+                                }
+                                logAccess(req.user.id, `/${fileType}`, req.method, req.ip, req.get('User-Agent'), true);
+                                res.json({ message: 'File created successfully', fileId: this.lastID });
+                            }
+                        );
+                    } else {
+                        // Handle file upload for images/documents
+                        upload.single('file')(req, res, (err) => {
+                            if (err) {
+                                return res.status(400).json({ error: 'File upload failed' });
+                            }
+
+                            if (!req.file) {
+                                return res.status(400).json({ error: 'No file provided' });
+                            }
+
+                            db.run(
+                                "INSERT INTO files (filename, original_name, type, path, created_by) VALUES (?, ?, ?, ?, ?)",
+                                [req.file.filename, req.file.originalname, fileType, req.file.path, req.user.id],
+                                function (err) {
+                                    if (err) {
+                                        return res.status(500).json({ error: 'Failed to save file info' });
+                                    }
+                                    logAccess(req.user.id, `/${fileType}`, req.method, req.ip, req.get('User-Agent'), true);
+                                    res.json({ message: 'File uploaded successfully', fileId: this.lastID });
+                                }
+                            );
+                        });
+                    }
+                    break;
+
+                default:
+                    res.status(400).json({ error: 'Invalid action' });
+            }
+        } catch (error) {
+            logAccess(req.user.id, `/${fileType}`, req.method, req.ip, req.get('User-Agent'), false);
+            res.status(500).json({ error: 'Operation failed' });
+        }
+    };
+};
