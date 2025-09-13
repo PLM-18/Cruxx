@@ -307,3 +307,54 @@ export default function WorkspaceDetail() {
             </div>
         )
     }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-6">
+            {/* Header */}
+            <div className="max-w-7xl mx-auto mb-8">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+                    <div className="flex items-center gap-4 mb-6">
+                        <button
+                            onClick={() => navigate('/workspaces')}
+                            className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                        >
+                            <ArrowLeft className="h-5 w-5 text-white" />
+                        </button>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Shield className="h-6 w-6 text-blue-400" />
+                                <h1 className="text-2xl font-bold text-white">{workspace.name}</h1>
+                                {workspace.case_number && (
+                                    <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-semibold border border-blue-400/30">
+                                        Case #{workspace.case_number}
+                                    </span>
+                                )}
+                            </div>
+                            {workspace.description && (
+                                <p className="text-slate-300">{workspace.description}</p>
+                            )}
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowUploadModal(true)}
+                                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                            >
+                                <Upload className="h-4 w-4" />
+                                Upload Evidence
+                            </button>
+                            {canManageMembers && (
+                                <button
+                                    onClick={() => setShowAddMemberModal(true)}
+                                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                                >
+                                    <UserPlus className="h-4 w-4" />
+                                    Add Member
+                                </button>
+                            )}
+                            <button className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
+                                <Settings className="h-5 w-5 text-white" />
+                            </button>
+                        </div>
+                    </div>
