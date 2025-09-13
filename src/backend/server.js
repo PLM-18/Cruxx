@@ -409,3 +409,55 @@ app.post('/login', [
         res.status(500).json({ error: 'Login failed' });
     }
 });
+
+// Admin management endpoints
+app.get('/manage', authenticateToken, authorizeRoles(['Admin', 'Manager']), (req, res) => {
+    db.all(
+        "SELECT id, name, surname, email, role, approved, created_at FROM users ORDER BY created_at DESC",
+        [],
+        (err, users) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch users' });
+            }
+
+            logAccess(req.user.id, '/manage', 'GET', req.ip, req.get('User-Agent'), true);
+            res.json(users);
+        }
+    );
+});
+
+// Approve user
+app.post('/manage/approve', authenticateToken, authorizeRoles(['Admin', 'Manager']), (req, res) => {
+    const { userId } = req.body;
+
+    db.run(
+        "UPDATE users SET approved = TRUE WHERE id = ?",
+        [userId],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to approve user' });
+            }
+
+            logAccess(req.user.id, '/manage/approve', 'POST', req.ip, req.get('User-Agent'), true);
+            res.json({ message: 'User approved successfully' });
+        }
+    );
+});
+
+// Revoke user
+app.post('/manage/revoke', authenticateToken, authorizeRoles(['Admin']), (req, res) => {
+    const { userId } = req.body;
+
+    db.run(
+        "UPDATE users SET approved = FALSE WHERE id = ?",
+        [userId],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to revoke user' });
+            }
+
+            logAccess(req.user.id, '/manage/revoke', 'POST', req.ip, req.get('User-Agent'), true);
+            res.json({ message: 'User revoked successfully' });
+        }
+    );
+});
