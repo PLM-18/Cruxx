@@ -430,3 +430,130 @@ export default function WorkspaceDetail() {
                     )}
                 </div>
             </div>
+
+            {/* Evidence Section */}
+            <div className="max-w-7xl mx-auto">
+                {/* Controls */}
+                <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between mb-6">
+                    <div className="flex gap-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search evidence..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <select
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="pl-10 pr-8 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="images">Images</option>
+                                <option value="documents">Documents</option>
+                                <option value="media">Media</option>
+                                <option value="archives">Archives</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Evidence Grid */}
+                {filteredEvidence.length === 0 ? (
+                    <div className="text-center py-12">
+                        <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
+                            <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold text-white mb-2">No Evidence Found</h3>
+                            <p className="text-slate-300 mb-6">
+                                {evidence.length === 0 
+                                    ? "Upload your first piece of evidence to get started"
+                                    : "No evidence matches your current search criteria"
+                                }
+                            </p>
+                            <button
+                                onClick={() => setShowUploadModal(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                            >
+                                Upload Evidence
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredEvidence.map((item) => (
+                            <div
+                                key={item.id}
+                                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105"
+                            >
+                                {/* File Header */}
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        {getFileIcon(item.mime_type)}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-white font-semibold truncate" title={item.original_filename}>
+                                                {item.original_filename}
+                                            </h3>
+                                            <p className="text-xs text-slate-400">{formatFileSize(item.file_size)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button className="p-1 hover:bg-white/10 rounded">
+                                            <Eye className="h-4 w-4 text-slate-400" />
+                                        </button>
+                                        <button className="p-1 hover:bg-white/10 rounded">
+                                            <Download className="h-4 w-4 text-slate-400" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Description */}
+                                {item.description && (
+                                    <p className="text-sm text-slate-300 mb-3 line-clamp-2">{item.description}</p>
+                                )}
+
+                                {/* Tags */}
+                                {item.tags && (
+                                    <div className="flex flex-wrap gap-1 mb-3">
+                                        {item.tags.split(',').map((tag, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-400/30"
+                                            >
+                                                {tag.trim()}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* File Hash */}
+                                <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Hash className="h-3 w-3 text-slate-400" />
+                                        <span className="text-xs text-slate-400 font-semibold">SHA-256</span>
+                                    </div>
+                                    <p className="text-xs text-slate-300 font-mono break-all">
+                                        {item.file_hash}
+                                    </p>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between text-xs text-slate-400">
+                                    <div className="flex items-center gap-1">
+                                        <User className="h-3 w-3" />
+                                        <span>{item.uploader_name} {item.uploader_surname}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        <span>{new Date(item.uploaded_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
