@@ -144,3 +144,31 @@ db.serialize(() => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )`);
+
+    // Create default admin user
+    const adminEmail = 'admin@forensiclink.com';
+    const adminPassword = 'forensiclink2024';
+
+    db.get("SELECT id FROM users WHERE email = ?", [adminEmail], async (err, row) => {
+        if (!row) {
+            try {
+                const hashedPassword = await bcrypt.hash(adminPassword, 12);
+                db.run(
+                    "INSERT INTO users (name, surname, email, password, role, approved) VALUES (?, ?, ?, ?, ?, ?)",
+                    ['Admin', 'User', adminEmail, hashedPassword, 'Admin', true],
+                    function(err) {
+                        if (err) {
+                            console.error('Error creating admin user:', err);
+                        } else {
+                            console.log('✅ Default admin user created successfully');
+                            console.log('📧 Email:', adminEmail);
+                            console.log('🔑 Password:', adminPassword);
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error('Error hashing admin password:', error);
+            }
+        }
+    });
+});
