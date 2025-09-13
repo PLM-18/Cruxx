@@ -172,3 +172,24 @@ db.serialize(() => {
         }
     });
 });
+
+// Validation schemas
+const registerSchema = Joi.object({
+    name: Joi.string().min(2).max(50).required(),
+    surname: Joi.string().min(2).max(50).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])')).required()
+});
+
+const loginSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required()
+});
+
+// Logging function
+const logAccess = (userId, endpoint, action, ipAddress, userAgent, success) => {
+    db.run(
+        "INSERT INTO access_logs (user_id, endpoint, action, ip_address, user_agent, success) VALUES (?, ?, ?, ?, ?, ?)",
+        [userId, endpoint, action, ipAddress, userAgent, success]
+    );
+};
