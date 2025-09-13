@@ -90,3 +90,42 @@ export default function WorkspaceManager() {
             console.error('Error fetching managers:', error)
         }
     }
+
+    const createWorkspace = async (e) => {
+        e.preventDefault()
+        
+        if (!newWorkspace.name.trim()) {
+            toast.error('Workspace name is required')
+            return
+        }
+
+        if (!newWorkspace.assigned_manager) {
+            toast.error('Manager assignment is required')
+            return
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/workspaces', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(newWorkspace)
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                toast.success('Workspace created and manager assigned successfully!')
+                setShowCreateModal(false)
+                setNewWorkspace({ name: '', description: '', case_number: '', assigned_manager: '' })
+                fetchWorkspaces()
+            } else {
+                const error = await response.json()
+                toast.error(error.error || 'Failed to create workspace')
+            }
+        } catch (error) {
+            console.error('Error creating workspace:', error)
+            toast.error('Error creating workspace')
+        }
+    }
