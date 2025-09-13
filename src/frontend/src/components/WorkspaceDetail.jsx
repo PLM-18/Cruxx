@@ -261,3 +261,49 @@ export default function WorkspaceDetail() {
             default: return <User className="h-4 w-4 text-blue-500" />
         }
     }
+
+    const filteredEvidence = evidence.filter(item => {
+        const matchesSearch = item.original_filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            item.tags?.toLowerCase().includes(searchTerm.toLowerCase())
+        
+        const matchesFilter = filterType === 'all' || 
+                            (filterType === 'images' && item.mime_type.startsWith('image/')) ||
+                            (filterType === 'documents' && (item.mime_type.includes('pdf') || item.mime_type.includes('document') || item.mime_type.includes('text'))) ||
+                            (filterType === 'media' && (item.mime_type.startsWith('video/') || item.mime_type.startsWith('audio/'))) ||
+                            (filterType === 'archives' && (item.mime_type.includes('zip') || item.mime_type.includes('rar')))
+        
+        return matchesSearch && matchesFilter
+    })
+
+    // Check if user can manage team members
+    const canManageMembers = user?.role === 'Admin' || workspace?.user_role === 'Manager'
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                    <p className="text-white text-lg">Loading workspace...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (!workspace) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+                <div className="text-center">
+                    <AlertTriangle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">Workspace Not Found</h2>
+                    <p className="text-slate-300 mb-6">The requested workspace could not be loaded.</p>
+                    <button
+                        onClick={() => navigate('/workspaces')}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                        Back to Workspaces
+                    </button>
+                </div>
+            </div>
+        )
+    }
