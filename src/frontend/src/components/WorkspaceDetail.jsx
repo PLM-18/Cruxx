@@ -90,3 +90,42 @@ export default function WorkspaceDetail() {
             navigate('/workspaces')
         }
     }
+
+    const fetchAvailableUsers = async () => {
+        try {
+            const response = await fetch(`http://localhost:3000/workspaces/${id}/available-users`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            
+            if (response.ok) {
+                const data = await response.json()
+                setAvailableUsers(data)
+            }
+        } catch (error) {
+            console.error('Error fetching available users:', error)
+        }
+    }
+
+    const fetchEvidence = async () => {
+        try {
+            const response = await fetch(`http://localhost:3000/workspaces/${id}/evidence`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            
+            if (response.ok) {
+                const data = await response.json()
+                setEvidence(data)
+            } else {
+                toast.error('Failed to load evidence')
+            }
+        } catch (error) {
+            console.error('Error fetching evidence:', error)
+            toast.error('Error loading evidence')
+        } finally {
+            setLoading(false)
+        }
+    }
