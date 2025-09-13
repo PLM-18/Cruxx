@@ -273,3 +273,139 @@ const decrypt = (text) => {
     decrypted += decipher.final('utf8');
     return decrypted;
 };
+
+// Routes
+
+// Registration endpoint
+app.post('/register', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])/),
+    body('name').isLength({ min: 2, max: 50 }).trim(),
+    body('surname').isLength({ min: 2, max: 50 }).trim()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { error, value } = registerSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+        const { name, surname, email, password } = value;
+
+        // Check if user already exists
+        db.get("SELECT id FROM users WHERE email = ?", [email], async (err, row) => {
+            if (row) {
+                return res.status(409).json({ error: 'User already exists' });
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 12);
+
+            db.run(
+                "INSERT INTO users (name, surname, email, password, approved) VALUES (?, ?, ?, ?, ?)",
+                [name, surname, email, hashedPassword, false],
+                function (err) {
+                    if (err) {
+                        console.error('Registration error:', err);
+                        return res.status(500).json({ error: 'Registration failed' });
+                    }
+
+                    console.log('✅ User registered successfully:', email);
+                    logAccess(this.lastID, '/register', 'POST', req.ip, req.get('User-Agent'), true);
+                    
+                    res.status(201).json({
+                        message: 'Registration successful! Your account is pending admin approval.',
+                        userId: this.lastID,
+                        success: true
+                    });
+                }
+            );
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Login endpoint
+app.post('/login', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').notEmpty()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { email, password } = req.body;
+
+        db.get(
+            "SELECT id, name, surname, email, password, role, approved, mfa_enabled FROM users WHERE email = ?",
+            [email],
+            async (err, user) => {
+                if (err) {
+                    logAccess(null, '/login', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                if (!user) {
+                    logAccess(null, '/login', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.status(401).json({ error: 'Invalid credentials' });
+                }
+
+                if (!user.approved) {
+                    logAccess(user.id, '/login', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.status(403).json({ error: 'Account not approved yet' });
+                }
+
+                const validPassword = await bcrypt.compare(password, user.password);
+                
+                if (!validPassword) {
+                    logAccess(user.id, '/login', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.status(401).json({ error: 'Invalid credentials' });
+                }
+
+                const token = jwt.sign(
+                    {
+                        id: user.id,
+                        email: user.email,
+                        role: user.role,
+                        mfaEnabled: user.mfa_enabled
+                    },
+                    JWT_SECRET,
+                    { expiresIn: '1h' }
+                );
+
+                if (user.mfa_enabled) {
+                    const tempToken = jwt.sign(
+                        { id: user.id, email: user.email, temp: true },
+                        JWT_SECRET,
+                        { expiresIn: '10m' }
+                    );
+
+                    res.json({
+                        requiresMFA: true,
+                        tempToken: tempToken
+                    });
+                } else {
+                    logAccess(user.id, '/login', 'POST', req.ip, req.get('User-Agent'), true);
+                    res.json({
+                        token: token,
+                        user: {
+                            id: user.id,
+                            name: user.name,
+                            surname: user.surname,
+                            email: user.email,
+                            role: user.role
+                        }
+                    });
+                }
+            }
+        );
+    } catch (error) {
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
