@@ -209,3 +209,55 @@ export default function WorkspaceDetail() {
             toast.error('Failed to add member')
         }
     }
+
+    const handleRemoveMember = async (memberId) => {
+        if (!confirm('Are you sure you want to remove this member from the workspace?')) {
+            return
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/workspaces/${id}/members/${memberId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+
+            if (response.ok) {
+                toast.success('Member removed successfully!')
+                fetchWorkspaceDetails()
+                fetchAvailableUsers()
+            } else {
+                const error = await response.json()
+                toast.error(error.error || 'Failed to remove member')
+            }
+        } catch (error) {
+            console.error('Remove member error:', error)
+            toast.error('Failed to remove member')
+        }
+    }
+
+    const getFileIcon = (mimeType) => {
+        if (mimeType.startsWith('image/')) return <Image className="h-5 w-5 text-blue-500" />
+        if (mimeType.startsWith('video/')) return <Video className="h-5 w-5 text-purple-500" />
+        if (mimeType.startsWith('audio/')) return <Music className="h-5 w-5 text-green-500" />
+        if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) 
+            return <Archive className="h-5 w-5 text-orange-500" />
+        return <FileText className="h-5 w-5 text-gray-500" />
+    }
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes'
+        const k = 1024
+        const sizes = ['Bytes', 'KB', 'MB', 'GB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    }
+
+    const getMemberRoleIcon = (role) => {
+        switch (role) {
+            case 'Manager': return <Crown className="h-4 w-4 text-yellow-500" />
+            case 'Admin': return <Shield className="h-4 w-4 text-red-500" />
+            default: return <User className="h-4 w-4 text-blue-500" />
+        }
+    }
