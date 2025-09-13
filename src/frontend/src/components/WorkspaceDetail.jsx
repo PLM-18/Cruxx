@@ -557,3 +557,157 @@ export default function WorkspaceDetail() {
                     </div>
                 )}
             </div>
+
+            {/* Upload Modal */}
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-6">Upload Evidence</h2>
+                        
+                        <form onSubmit={handleFileUpload} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Evidence File *
+                                </label>
+                                <input
+                                    type="file"
+                                    onChange={(e) => setUploadData({...uploadData, file: e.target.files[0]})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Max 100MB. Supported: Images, Documents, Videos, Audio, Archives
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={uploadData.description}
+                                    onChange={(e) => setUploadData({...uploadData, description: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    rows="3"
+                                    placeholder="Describe this evidence..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Tags
+                                </label>
+                                <input
+                                    type="text"
+                                    value={uploadData.tags}
+                                    onChange={(e) => setUploadData({...uploadData, tags: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="malware, network, suspicious (comma-separated)"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUploadModal(false)}
+                                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                    disabled={uploading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={uploading || !uploadData.file}
+                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {uploading ? (
+                                        <div className="flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Uploading...
+                                        </div>
+                                    ) : (
+                                        'Upload Evidence'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Member Modal */}
+            {showAddMemberModal && canManageMembers && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-6">Add Team Member</h2>
+                        
+                        <form onSubmit={handleAddMember} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Select User *
+                                </label>
+                                <select
+                                    value={newMember.userId}
+                                    onChange={(e) => setNewMember({...newMember, userId: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                >
+                                    <option value="">Choose a user...</option>
+                                    {availableUsers.map(user => (
+                                        <option key={user.id} value={user.id}>
+                                            {user.name} {user.surname} ({user.role}) - {user.email}
+                                        </option>
+                                    ))}
+                                </select>
+                                {availableUsers.length === 0 && (
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        No available users to add. All approved users are already members.
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Workspace Role
+                                </label>
+                                <select
+                                    value={newMember.role}
+                                    onChange={(e) => setNewMember({...newMember, role: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="Analyst">Analyst - Can upload and view evidence</option>
+                                    {user?.role === 'Admin' && (
+                                        <option value="Manager">Manager - Can manage team members</option>
+                                    )}
+                                </select>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {user?.role === 'Admin' 
+                                        ? "Admins can assign any role"
+                                        : "Managers can only add Analysts to the workspace"
+                                    }
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddMemberModal(false)}
+                                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!newMember.userId || availableUsers.length === 0}
+                                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Add Member
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
