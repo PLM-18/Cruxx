@@ -193,3 +193,83 @@ const logAccess = (userId, endpoint, action, ipAddress, userAgent, success) => {
         [userId, endpoint, action, ipAddress, userAgent, success]
     );
 };
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        logAccess(null, req.path, req.method, req.ip, req.get('User-Agent'), false);
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            logAccess(null, req.path, req.method, req.ip, req.get('User-Agent'), false);
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// MFA Status endpoint
+app.get('/mfa-status', authenticateToken, (req, res) => {
+    db.get(
+        "SELECT mfa_enabled FROM users WHERE id = ?",
+        [req.user.id],
+        (err, user) => {
+            if (err || !user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            logAccess(req.user.id, '/mfa-status', 'GET', req.ip, req.get('User-Agent'), true);
+            res.json({
+                mfaEnabled: Boolean(user.mfa_enabled)
+            });
+        }
+    );
+});
+// Role authorization middleware
+const authorizeRoles = (roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            logAccess(req.user.id, req.path, req.method, req.ip, req.get('User-Agent'), false);
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+        next();
+    };
+};
+
+// Audit logging function
+function logAudit(userId, workspaceId, evidenceId, action, details, req) {
+    db.run(
+        "INSERT INTO audit_logs (user_id, workspace_id, evidence_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [userId, workspaceId, evidenceId, action, details, req.ip, req.get('User-Agent')],
+        (err) => {
+            if (err) console.error('Audit log error:', err);
+        }
+    );
+}
+
+// File encryption/decryption functions
+const encrypt = (text) => {
+    const iv = crypto.randomBytes(16);
+    const enc_key_hex = Buffer.from(ENCRYPTION_KEY, "hex")
+    const cipher = crypto.createCipheriv('aes-256-cbc', enc_key_hex,iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+};
+
+const decrypt = (text) => {
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = textParts.join(':');
+    const enc_key_hex = Buffer.from(ENCRYPTION_KEY, "hex")
+    const decipher = crypto.createDecipheriv('aes-256-cbc', enc_key_hex,iv);
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+};
