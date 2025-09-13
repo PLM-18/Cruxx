@@ -358,3 +358,75 @@ export default function WorkspaceDetail() {
                             </button>
                         </div>
                     </div>
+
+                    {/* Workspace Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-blue-500/20 rounded-xl p-4 border border-blue-400/30">
+                            <div className="flex items-center gap-2 text-blue-300 mb-1">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm font-semibold">Evidence Files</span>
+                            </div>
+                            <p className="text-xl font-bold text-white">{evidence.length}</p>
+                        </div>
+                        <div className="bg-purple-500/20 rounded-xl p-4 border border-purple-400/30">
+                            <div className="flex items-center gap-2 text-purple-300 mb-1">
+                                <Users className="h-4 w-4" />
+                                <span className="text-sm font-semibold">Team Members</span>
+                            </div>
+                            <p className="text-xl font-bold text-white">{workspace.members?.length || 0}</p>
+                        </div>
+                        <div className="bg-green-500/20 rounded-xl p-4 border border-green-400/30">
+                            <div className="flex items-center gap-2 text-green-300 mb-1">
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-sm font-semibold">Status</span>
+                            </div>
+                            <p className="text-lg font-bold text-white">{workspace.status}</p>
+                        </div>
+                        <div className="bg-orange-500/20 rounded-xl p-4 border border-orange-400/30">
+                            <div className="flex items-center gap-2 text-orange-300 mb-1">
+                                <Clock className="h-4 w-4" />
+                                <span className="text-sm font-semibold">Created</span>
+                            </div>
+                            <p className="text-sm font-bold text-white">
+                                {new Date(workspace.created_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Team Members Section */}
+                    {workspace.members && workspace.members.length > 0 && (
+                        <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
+                            <h3 className="text-lg font-semibold text-white mb-3">Team Members</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {workspace.members.map((member) => (
+                                    <div key={member.id} className="bg-white/10 rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {getMemberRoleIcon(member.role)}
+                                                <div>
+                                                    <p className="text-white font-semibold text-sm">
+                                                        {member.name} {member.surname}
+                                                    </p>
+                                                    <p className="text-slate-400 text-xs">{member.email}</p>
+                                                    <span className="inline-block px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded mt-1">
+                                                        {member.role}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {canManageMembers && member.role !== 'Manager' && (
+                                                <button
+                                                    onClick={() => handleRemoveMember(member.user_id)}
+                                                    className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
+                                                    title="Remove member"
+                                                >
+                                                    <UserMinus className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
