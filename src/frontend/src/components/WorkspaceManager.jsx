@@ -330,3 +330,121 @@ export default function WorkspaceManager() {
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between text-xs text-slate-400">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1">
+                                            <FileText className="h-4 w-4" />
+                                            <span>{workspace.evidence_count || 0} files</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="h-4 w-4" />
+                                            <span>{new Date(workspace.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Creator info */}
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                    <p className="text-xs text-slate-400">
+                                        Created by {workspace.creator_name} {workspace.creator_surname}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Create Workspace Modal - Admin Only */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-6">Create New Investigation</h2>
+                        
+                        <form onSubmit={createWorkspace} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Investigation Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newWorkspace.name}
+                                    onChange={(e) => setNewWorkspace({...newWorkspace, name: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="e.g., Ransomware Attack Investigation"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Assign Manager *
+                                </label>
+                                <select
+                                    value={newWorkspace.assigned_manager}
+                                    onChange={(e) => setNewWorkspace({...newWorkspace, assigned_manager: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                >
+                                    <option value="">Select a manager...</option>
+                                    {managers.map(manager => (
+                                        <option key={manager.id} value={manager.id}>
+                                            {manager.name} {manager.surname} ({manager.email})
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    The selected manager will be able to add team members to this workspace
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Case Number
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newWorkspace.case_number}
+                                    onChange={(e) => setNewWorkspace({...newWorkspace, case_number: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="e.g., CASE-2024-001"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={newWorkspace.description}
+                                    onChange={(e) => setNewWorkspace({...newWorkspace, description: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    rows="3"
+                                    placeholder="Brief description of the investigation..."
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold"
+                                >
+                                    Create & Assign
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
