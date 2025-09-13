@@ -1,35 +1,65 @@
-> *This document serves as a template for you to write **setup** instructions for your project.* 
-
-> Depending on the scale/complexity of your project, it may prove beneficial to have a **Python/Batch/Bash** script in the `scripts/` directory which *automatically sets-up* the project.
+> *This document provides setup instructions for running both the Node.js backend and React Vite frontend of your project. Optionally, you can use Docker for containerized deployment.*
 
 # Setup Instructions
 
-Follow the steps below to set up and run the project. (Example)
+Follow the steps below to set up and run the project.
 
 ---
 
 ## 📦 Requirements
-``` c
-// TODO: List software, runtimes, frameworks, and or dependencies
-// along with instructions on how to set each up.
-```
-- Example: Node.js v18+
-- Example: Python 3.10
-- Example: Docker
+
+- Node.js v18+
+- npm (comes with Node.js)
+- (Optional) Docker
 
 ---
 
 ## ⚙️ Installation
-``` bash
-# Clone the repository
-git clone <your-repo-url>
-cd <repo-name>
 
-# Install dependencies
-<insert command here>
+### 1. Clone the repository
+```bash
+git clone git@github.com:PLM-18/Cruxx.git
+cd Cruxx
 ```
+
+### 2. Install Backend Dependencies
+```bash
+cd backend
+npm install
+```
+
+### 3. Install Frontend Dependencies
+```bash
+cd ../frontend
+npm install
+```
+
+---
 
 ## ▶️ Running the Project
-``` bash
-<insert run command here> # Or an explanation on what to do
+
+### 1. Start the Backend
+```bash
+cd backend
+npm run dev
 ```
+
+### 2. Start the Frontend
+```bash
+cd ../frontend
+npm run dev
+```
+The frontend will typically be available at [http://localhost:5173](http://localhost:5173) and the backend at [http://localhost:3000](http://localhost:3000) (adjust ports as needed).
+
+---
+
+## 🐳 Docker (Optional)
+
+You can run both services using Docker Compose if a `docker-compose.yml` is provided.
+
+```bash
+docker-compose up --build
+```
+
+This will build and start both the backend and frontend containers.
+
