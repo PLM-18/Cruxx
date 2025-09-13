@@ -40,7 +40,7 @@ class EncryptionService {
    */
   encryptAES(data, key) {
     const iv = crypto.randomBytes(this.ivLength);
-    const cipher = crypto.createCipher(this.algorithm, key, { iv });
+    const cipher = crypto.createCipherGCM(this.algorithm, key, iv);
     
     let encrypted = cipher.update(data);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
@@ -63,7 +63,7 @@ class EncryptionService {
    * @returns {Buffer} - Decrypted data
    */
   decryptAES(encryptedData, key, iv, tag) {
-    const decipher = crypto.createDecipher(this.algorithm, key, { iv });
+    const decipher = crypto.createDecipherGCM(this.algorithm, key, iv);
     decipher.setAuthTag(tag);
     
     let decrypted = decipher.update(encryptedData);
@@ -268,10 +268,11 @@ class EncryptionService {
    * @returns {string} - Encrypted data (base64)
    */
   encryptForStorage(data, key) {
-    const cipher = crypto.createCipher('aes-256-cbc', key);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.scryptSync(key, 'salt', 32), iv);
     let encrypted = cipher.update(data, 'utf8', 'base64');
     encrypted += cipher.final('base64');
-    return encrypted;
+    return iv.toString('base64') + ':' + encrypted;
   }
 
   /**
@@ -281,8 +282,10 @@ class EncryptionService {
    * @returns {string} - Decrypted data
    */
   decryptFromStorage(encryptedData, key) {
-    const decipher = crypto.createDecipher('aes-256-cbc', key);
-    let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
+    const [ivBase64, encrypted] = encryptedData.split(':');
+    const iv = Buffer.from(ivBase64, 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.scryptSync(key, 'salt', 32), iv);
+    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   }

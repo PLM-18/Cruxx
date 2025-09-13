@@ -773,8 +773,8 @@ router.post('/bulk-delete',
   authenticateToken,
   requireWorkspaceMFA,
   [
-    body('fileIds').isArray({ min: 1 }).withMessage('File IDs array required'),
-    body('fileIds.*').isInt().withMessage('All file IDs must be integers')
+    require('express-validator').body('fileIds').isArray({ min: 1 }).withMessage('File IDs array required'),
+    require('express-validator').body('fileIds.*').isInt().withMessage('All file IDs must be integers')
   ],
   async (req, res) => {
     try {

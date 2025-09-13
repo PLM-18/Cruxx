@@ -84,7 +84,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/audit', auditRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     error: 'Resource not found',
     message: `Cannot ${req.method} ${req.originalUrl}`

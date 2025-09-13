@@ -262,7 +262,9 @@ const sensitiveRateLimit = require('express-rate-limit')({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user ? `${req.ip}-${req.user.id}` : req.ip;
+  const { ipKeyGenerator } = require('express-rate-limit');
+  const ipKey = ipKeyGenerator(req);
+  return req.user ? `${ipKey}-${req.user.id}` : ipKey;
   }
 });
 
