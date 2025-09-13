@@ -129,3 +129,38 @@ export default function WorkspaceManager() {
             toast.error('Error creating workspace')
         }
     }
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Active': return 'bg-green-100 text-green-800 border-green-200'
+            case 'Archived': return 'bg-gray-100 text-gray-800 border-gray-200'
+            case 'Closed': return 'bg-red-100 text-red-800 border-red-200'
+            default: return 'bg-blue-100 text-blue-800 border-blue-200'
+        }
+    }
+
+    const getRoleIcon = (role) => {
+        switch (role) {
+            case 'Admin': return <Shield className="h-4 w-4 text-red-500" />
+            case 'Manager': return <Users className="h-4 w-4 text-blue-500" />
+            default: return <Eye className="h-4 w-4 text-green-500" />
+        }
+    }
+
+    const filteredWorkspaces = workspaces.filter(workspace => {
+        const matchesSearch = workspace.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            workspace.case_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesFilter = filterStatus === 'all' || workspace.status === filterStatus
+        return matchesSearch && matchesFilter
+    })
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                    <p className="text-white text-lg">Loading workspaces...</p>
+                </div>
+            </div>
+        )
+    }
