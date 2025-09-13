@@ -257,3 +257,76 @@ export default function WorkspaceManager() {
                     )}
                 </div>
             </div>
+
+            {/* Workspaces Grid */}
+            <div className="max-w-7xl mx-auto">
+                {filteredWorkspaces.length === 0 ? (
+                    <div className="text-center py-12">
+                        <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
+                            <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold text-white mb-2">No workspaces found</h3>
+                            <p className="text-slate-300 mb-6">
+                                {canCreateWorkspace 
+                                    ? "Create your first investigation workspace to get started"
+                                    : user?.role === 'Manager'
+                                    ? "No workspaces assigned to you yet. Contact an admin to be assigned investigations."
+                                    : "No workspaces available. Contact a manager to be added to investigations."
+                                }
+                            </p>
+                            {canCreateWorkspace && (
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                                >
+                                    Create Workspace
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredWorkspaces.map((workspace) => (
+                            <div
+                                key={workspace.id}
+                                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105 cursor-pointer"
+                                onClick={() => navigate(`/workspaces/${workspace.id}`)}
+                            >
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Lock className="h-5 w-5 text-blue-400" />
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getStatusColor(workspace.status)}`}>
+                                            {workspace.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {getRoleIcon(workspace.user_role)}
+                                        <span className="text-xs text-slate-300">{workspace.user_role}</span>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <div className="mb-4">
+                                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1">
+                                        {workspace.name}
+                                    </h3>
+                                    {workspace.case_number && (
+                                        <p className="text-sm text-blue-300 mb-2">Case #{workspace.case_number}</p>
+                                    )}
+                                    {workspace.description && (
+                                        <p className="text-sm text-slate-300 line-clamp-2">{workspace.description}</p>
+                                    )}
+                                </div>
+
+                                {/* Manager Info */}
+                                {workspace.manager_name && (
+                                    <div className="mb-3 p-2 bg-blue-500/20 rounded-lg border border-blue-400/30">
+                                        <div className="flex items-center gap-2 text-blue-300">
+                                            <UserCheck className="h-3 w-3" />
+                                            <span className="text-xs font-semibold">Manager:</span>
+                                        </div>
+                                        <p className="text-xs text-white">
+                                            {workspace.manager_name} {workspace.manager_surname}
+                                        </p>
+                                    </div>
+                                )}
