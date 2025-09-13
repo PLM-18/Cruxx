@@ -212,3 +212,48 @@ export default function WorkspaceManager() {
                     </div>
                 </div>
             </div>
+
+            {/* Controls */}
+            <div className="max-w-7xl mx-auto mb-6">
+                <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+                    <div className="flex gap-4">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search workspaces..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        {/* Filter */}
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="pl-10 pr-8 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Archived">Archived</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Create Workspace Button - Admin only */}
+                    {canCreateWorkspace && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+                        >
+                            <Plus className="h-5 w-5" />
+                            New Investigation
+                        </button>
+                    )}
+                </div>
+            </div>
