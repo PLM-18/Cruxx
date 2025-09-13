@@ -37,3 +37,20 @@ const authLimiter = rateLimit({
     max: 9, // limit each IP to 9 requests per windowMs
     message: 'Too many authentication attempts, please try again later.'
 });
+
+app.use(limiter);
+app.use('/login', authLimiter);
+app.use('/register', authLimiter);
+
+app.use(express.json());
+
+// Ensure directories exist
+const directories = ['uploads/evidence', 'uploads/images', 'uploads/documents', 'uploads/confidential'];
+directories.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
+
+// Database setup
+const db = new sqlite3.Database('forensiclink.db');
