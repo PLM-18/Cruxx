@@ -164,3 +164,51 @@ export default function WorkspaceManager() {
             </div>
         )
     }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-6">
+            {/* Header with Gamification */}
+            <div className="max-w-7xl mx-auto mb-8">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h1 className="text-3xl font-bold text-white mb-2">Investigation Workspaces</h1>
+                            <p className="text-blue-100">
+                                {user?.role === 'Admin' 
+                                    ? "Create and oversee all investigation workspaces"
+                                    : user?.role === 'Manager'
+                                    ? "Manage your assigned investigation teams"
+                                    : "Collaborate on digital forensics investigations"
+                                }
+                            </p>
+                        </div>
+                        
+                        {/* Gamification Stats */}
+                        <div className="flex gap-4">
+                            <div className="bg-green-500/20 rounded-xl p-4 border border-green-400/30">
+                                <div className="flex items-center gap-2 text-green-300">
+                                    <Award className="h-5 w-5" />
+                                    <span className="font-semibold">Security Score</span>
+                                </div>
+                                <p className="text-2xl font-bold text-white mt-1">98%</p>
+                            </div>
+                            <div className="bg-blue-500/20 rounded-xl p-4 border border-blue-400/30">
+                                <div className="flex items-center gap-2 text-blue-300">
+                                    <TrendingUp className="h-5 w-5" />
+                                    <span className="font-semibold">Active Cases</span>
+                                </div>
+                                <p className="text-2xl font-bold text-white mt-1">{workspaces.length}</p>
+                            </div>
+                            <div className="bg-purple-500/20 rounded-xl p-4 border border-purple-400/30">
+                                <div className="flex items-center gap-2 text-purple-300">
+                                    <Activity className="h-5 w-5" />
+                                    <span className="font-semibold">Evidence Files</span>
+                                </div>
+                                <p className="text-2xl font-bold text-white mt-1">
+                                    {workspaces.reduce((sum, w) => sum + (w.evidence_count || 0), 0)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
