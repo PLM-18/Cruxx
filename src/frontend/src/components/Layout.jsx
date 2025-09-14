@@ -29,9 +29,9 @@ export default function Layout() {
         { name: 'Dashboard', href: '/dashboard', icon: Home },
         { name: 'Workspaces', href: '/workspaces', icon: Briefcase },
         { name: 'Achievements', href: '/gamification', icon: Trophy },
-        { name: 'Images', href: '/files/images', icon: Image },
-        { name: 'Documents', href: '/files/documents', icon: FileText },
-        { name: 'Confidential', href: '/files/confidential', icon: Shield },
+        // { name: 'Images', href: '/files/images', icon: Image },
+        // { name: 'Documents', href: '/files/documents', icon: FileText },
+        // { name: 'Confidential', href: '/files/confidential', icon: Shield },
     ]
 
     if (user.role === 'Admin' || user.role === 'Manager') {

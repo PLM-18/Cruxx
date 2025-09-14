@@ -202,84 +202,7 @@ export default function Dashboard() {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Images Card */}
-                <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">Images</p>
-                            <p className="text-3xl font-bold text-gray-900">{stats.images}</p>
-                        </div>
-                        <div className="bg-blue-100 rounded-full p-3">
-                            <Image className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex justify-between items-center">
-                        <div className="text-xs text-gray-500">
-                            Permissions: {permissions.images?.join(', ') || 'None'}
-                        </div>
-                        {permissions.images?.length > 0 && (
-                            <Link
-                                to="/files/images"
-                                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                            >
-                                View <Eye className="inline h-4 w-4 ml-1" />
-                            </Link>
-                        )}
-                    </div>
-                </div>
-
-                {/* Documents Card */}
-                <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">Documents</p>
-                            <p className="text-3xl font-bold text-gray-900">{stats.documents}</p>
-                        </div>
-                        <div className="bg-green-100 rounded-full p-3">
-                            <FileText className="h-6 w-6 text-green-600" />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex justify-between items-center">
-                        <div className="text-xs text-gray-500">
-                            Permissions: {permissions.documents?.join(', ') || 'None'}
-                        </div>
-                        {permissions.documents?.length > 0 && (
-                            <Link
-                                to="/files/documents"
-                                className="text-green-600 hover:text-green-700 text-sm font-medium"
-                            >
-                                View <Eye className="inline h-4 w-4 ml-1" />
-                            </Link>
-                        )}
-                    </div>
-                </div>
-
-                {/* Confidential Card */}
-                <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">Confidential</p>
-                            <p className="text-3xl font-bold text-gray-900">{stats.confidential}</p>
-                        </div>
-                        <div className="bg-red-100 rounded-full p-3">
-                            <Shield className="h-6 w-6 text-red-600" />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex justify-between items-center">
-                        <div className="text-xs text-gray-500">
-                            Permissions: {permissions.confidential?.join(', ') || 'None'}
-                        </div>
-                        {permissions.confidential?.length > 0 && (
-                            <Link
-                                to="/files/confidential"
-                                className="text-red-600 hover:text-red-700 text-sm font-medium"
-                            >
-                                View <Eye className="inline h-4 w-4 ml-1" />
-                            </Link>
-                        )}
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
 
                 {/* Users Card (Admin/Manager only) */}
                 {(user.role === 'Admin' || user.role === 'Manager') && (
@@ -297,61 +220,16 @@ export default function Dashboard() {
                             <div className="text-xs text-gray-500">
                                 System Users
                             </div>
+                            { (user.role === 'Admin' || user.role === 'Manager') &&
                             <Link
-                                to="/manage"
+                                to="/manage-users"
                                 className="text-purple-600 hover:text-purple-700 text-sm font-medium"
                             >
                                 Manage <Settings className="inline h-4 w-4 ml-1" />
-                            </Link>
+                            </Link>}
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="card p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {permissions.images?.includes('create') && (
-                        <Link
-                            to="/files/images"
-                            className="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                        >
-                            <Plus className="h-5 w-5 text-blue-600 mr-3" />
-                            <span className="text-blue-700 font-medium w-fit">Upload Image</span>
-                        </Link>
-                    )}
-
-                    {permissions.documents?.includes('create') && (
-                        <Link
-                            to="/files/documents"
-                            className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                        >
-                            <Plus className="h-5 w-5 text-green-600 mr-3" />
-                            <span className="text-green-700 font-medium">Upload Document</span>
-                        </Link>
-                    )}
-
-                    {permissions.confidential?.includes('create') && (
-                        <Link
-                            to="/files/confidential"
-                            className="flex items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                        >
-                            <Plus className="h-5 w-5 text-red-600 mr-3" />
-                            <span className="text-red-700 font-medium">Create Confidential</span>
-                        </Link>
-                    )}
-
-                    {(user.role === 'Admin' || user.role === 'Manager') && (
-                        <Link
-                            to="/analytics"
-                            className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-                        >
-                            <BarChart3 className="h-5 w-5 text-purple-600 mr-3" />
-                            <span className="text-purple-700 font-medium">View Analytics</span>
-                        </Link>
-                    )}
-                </div>
             </div>
 
             {/* Recent Activity (Admin/Manager only) */}

@@ -152,8 +152,8 @@ export default function ManageUsers() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {['Admin', 'Manager', 'User', 'Guest'].map(role => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {['Admin', 'Manager', 'Analyst'].map(role => (
                     <div key={role} className="card p-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
@@ -190,9 +190,10 @@ export default function ManageUsers() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Created
                                 </th>
+                                { (user.role === 'Admin') && 
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
-                                </th>
+                                </th>}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -260,6 +261,7 @@ export default function ManageUsers() {
                                     </td>
 
                                     {/* Actions */}
+                                    { (user.role === 'Admin') &&
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex items-center space-x-2">
                                             {!userData.approved ? (
@@ -294,7 +296,7 @@ export default function ManageUsers() {
                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                                             )}
                                         </div>
-                                    </td>
+                                    </td>}
                                 </tr>
                             ))}
                         </tbody>
@@ -312,7 +314,7 @@ export default function ManageUsers() {
             {/* Legend */}
             <div className="card p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Role Permissions</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-3 md:grid-cols-1 gap-4 text-sm">
                     <div>
                         <div className="flex items-center mb-2">
                             <Crown className="h-4 w-4 text-purple-600 mr-2" />
@@ -324,17 +326,10 @@ export default function ManageUsers() {
                             <span className="font-medium">Manager:</span>
                             <span className="ml-1 text-gray-600">User management + file access</span>
                         </div>
-                    </div>
-                    <div>
                         <div className="flex items-center mb-2">
                             <User className="h-4 w-4 text-green-600 mr-2" />
-                            <span className="font-medium">User:</span>
+                            <span className="font-medium">Analyst:</span>
                             <span className="ml-1 text-gray-600">Read/write files</span>
-                        </div>
-                        <div className="flex items-center mb-2">
-                            <Eye className="h-4 w-4 text-gray-600 mr-2" />
-                            <span className="font-medium">Guest:</span>
-                            <span className="ml-1 text-gray-600">Read-only access</span>
                         </div>
                     </div>
                 </div>
