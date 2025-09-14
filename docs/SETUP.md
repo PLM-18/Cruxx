@@ -10,7 +10,6 @@ Follow the steps below to set up and run the project.
 
 - Node.js v18+
 - npm (comes with Node.js)
-- (Optional) Docker
 
 ---
 
@@ -51,15 +50,4 @@ npm run dev
 ```
 The frontend will typically be available at [http://localhost:5173](http://localhost:5173) and the backend at [http://localhost:3000](http://localhost:3000) (adjust ports as needed).
 
----
-
-## 🐳 Docker (Optional)
-
-You can run both services using Docker Compose if a `docker-compose.yml` is provided.
-
-```bash
-docker-compose up --build
-```
-
-This will build and start both the backend and frontend containers.
 
