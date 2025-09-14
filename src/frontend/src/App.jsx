@@ -13,6 +13,7 @@ import FileManager from './components/FileManager'
 import Analytics from './components/Analytics'
 import WorkspaceManager from './components/WorkspaceManager'
 import WorkspaceDetail from './components/WorkspaceDetail'
+import GamificationProfile from './components/GamificationProfile'
 import Layout from './components/Layout'
 
 // Context
@@ -45,6 +46,7 @@ function AppRoutes() {
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="workspaces" element={<WorkspaceManager />} />
                     <Route path="workspaces/:id" element={<WorkspaceDetail />} />
+                    <Route path="gamification" element={<GamificationProfile />} />
                     <Route path="mfa-setup" element={<EmailVerification />} />
                     <Route path="files/:type" element={<FileManager />} />
                     <Route path="manage-users" element={<ManageUsers />} />

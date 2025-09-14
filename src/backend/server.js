@@ -16,7 +16,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-32-char-encryption-key-here!';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '78a4afd45665c9af0e0cf0d41c0c4f638de30e38558ddcd42bd78ec897db3aaf'; // Must be 32 characters for AES-256
 console.log("ENCRYPTION_KEY", ENCRYPTION_KEY.toString('hex'));
 
 // Security middleware
@@ -145,6 +145,54 @@ db.serialize(() => {
         FOREIGN KEY (user_id) REFERENCES users (id)
     )`);
 
+    // User XP table
+    db.run(`CREATE TABLE IF NOT EXISTS user_xp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER UNIQUE NOT NULL,
+        total_xp INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )`);
+
+    // Achievements table
+    db.run(`CREATE TABLE IF NOT EXISTS achievements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        xp_reward INTEGER NOT NULL,
+        achievement_type TEXT NOT NULL,
+        target_value INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // User achievements table
+    db.run(`CREATE TABLE IF NOT EXISTS user_achievements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        achievement_id INTEGER NOT NULL,
+        earned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (achievement_id) REFERENCES achievements (id),
+        UNIQUE(user_id, achievement_id)
+    )`);
+
+    // XP transactions table
+    db.run(`CREATE TABLE IF NOT EXISTS xp_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        xp_amount INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        description TEXT,
+        evidence_id INTEGER,
+        achievement_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (evidence_id) REFERENCES evidence (id),
+        FOREIGN KEY (achievement_id) REFERENCES achievements (id)
+    )`);
+
     // Create default admin user
     const adminEmail = 'admin@forensiclink.com';
     const adminPassword = 'forensiclink2024';
@@ -169,6 +217,63 @@ db.serialize(() => {
             } catch (error) {
                 console.error('Error hashing admin password:', error);
             }
+        }
+    });
+
+    // Create default achievements
+    const defaultAchievements = [
+        {
+            name: "First Upload",
+            description: "Upload your first piece of evidence",
+            xp_reward: 50,
+            achievement_type: "first_upload",
+            target_value: 1
+        },
+        {
+            name: "Evidence Collector",
+            description: "Upload 10 pieces of evidence",
+            xp_reward: 200,
+            achievement_type: "upload_count",
+            target_value: 10
+        },
+        {
+            name: "Digital Investigator",
+            description: "Upload 50 pieces of evidence",
+            xp_reward: 500,
+            achievement_type: "upload_count",
+            target_value: 50
+        },
+        {
+            name: "Big File Handler",
+            description: "Upload a file larger than 25MB",
+            xp_reward: 100,
+            achievement_type: "large_file",
+            target_value: 26214400 // 25MB in bytes
+        },
+        {
+            name: "Data Analyst",
+            description: "Upload 100MB total of data",
+            xp_reward: 300,
+            achievement_type: "total_size",
+            target_value: 104857600 // 100MB in bytes
+        }
+    ];
+
+    // Check if achievements already exist, if not, create them
+    db.get("SELECT COUNT(*) as count FROM achievements", [], (err, result) => {
+        if (!err && result.count === 0) {
+            defaultAchievements.forEach(achievement => {
+                db.run(
+                    "INSERT INTO achievements (name, description, xp_reward, achievement_type, target_value) VALUES (?, ?, ?, ?, ?)",
+                    [achievement.name, achievement.description, achievement.xp_reward, achievement.achievement_type, achievement.target_value],
+                    function(err) {
+                        if (err) {
+                            console.error('Error creating achievement:', err);
+                        }
+                    }
+                );
+            });
+            console.log('✅ Default achievements created successfully');
         }
     });
 });
@@ -253,6 +358,126 @@ function logAudit(userId, workspaceId, evidenceId, action, details, req) {
     );
 }
 
+// Gamification functions
+const initializeUserXP = (userId, callback) => {
+    db.run(
+        "INSERT OR IGNORE INTO user_xp (user_id, total_xp, level) VALUES (?, 0, 1)",
+        [userId],
+        callback
+    );
+};
+
+const calculateLevel = (totalXP) => {
+    return Math.floor(totalXP / 1000) + 1;
+};
+
+const awardXP = (userId, xpAmount, source, description, evidenceId = null, achievementId = null, callback) => {
+    db.run(
+        "INSERT INTO xp_transactions (user_id, xp_amount, source, description, evidence_id, achievement_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [userId, xpAmount, source, description, evidenceId, achievementId],
+        function(err) {
+            if (err) return callback(err);
+
+            db.run(
+                "INSERT OR REPLACE INTO user_xp (user_id, total_xp, level, updated_at) SELECT ?, COALESCE((SELECT total_xp FROM user_xp WHERE user_id = ?), 0) + ?, ?, CURRENT_TIMESTAMP",
+                [userId, userId, xpAmount, calculateLevel],
+                function(updateErr) {
+                    if (updateErr) return callback(updateErr);
+
+                    db.get(
+                        "SELECT total_xp FROM user_xp WHERE user_id = ?",
+                        [userId],
+                        (selectErr, row) => {
+                            if (selectErr) return callback(selectErr);
+                            const newLevel = calculateLevel(row.total_xp);
+                            
+                            db.run(
+                                "UPDATE user_xp SET level = ? WHERE user_id = ?",
+                                [newLevel, userId],
+                                () => callback(null, { xpAwarded: xpAmount, newTotal: row.total_xp, newLevel })
+                            );
+                        }
+                    );
+                }
+            );
+        }
+    );
+};
+
+const checkAchievements = (userId, callback) => {
+    db.all(
+        `SELECT 
+            a.*,
+            ua.id as user_achievement_id,
+            (
+                CASE 
+                    WHEN a.achievement_type = 'upload_count' THEN (
+                        SELECT COUNT(*) FROM evidence WHERE uploaded_by = ?
+                    )
+                    WHEN a.achievement_type = 'total_size' THEN (
+                        SELECT COALESCE(SUM(file_size), 0) FROM evidence WHERE uploaded_by = ?
+                    )
+                    WHEN a.achievement_type = 'large_file' THEN (
+                        SELECT MAX(file_size) FROM evidence WHERE uploaded_by = ?
+                    )
+                    WHEN a.achievement_type = 'first_upload' THEN (
+                        SELECT COUNT(*) FROM evidence WHERE uploaded_by = ?
+                    )
+                    ELSE 0
+                END
+            ) as current_progress
+        FROM achievements a 
+        LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
+        WHERE ua.id IS NULL`,
+        [userId, userId, userId, userId, userId],
+        (err, unearned) => {
+            if (err) return callback(err);
+
+            const newAchievements = [];
+            let completed = 0;
+
+            if (unearned.length === 0) {
+                return callback(null, []);
+            }
+
+            unearned.forEach(achievement => {
+                if (achievement.current_progress >= achievement.target_value) {
+                    db.run(
+                        "INSERT INTO user_achievements (user_id, achievement_id) VALUES (?, ?)",
+                        [userId, achievement.id],
+                        function(insertErr) {
+                            if (insertErr) {
+                                console.error('Error recording achievement:', insertErr);
+                            } else {
+                                awardXP(userId, achievement.xp_reward, 'achievement', `Achievement unlocked: ${achievement.name}`, null, achievement.id, (xpErr) => {
+                                    if (xpErr) console.error('Error awarding achievement XP:', xpErr);
+                                });
+                                newAchievements.push(achievement);
+                            }
+                            
+                            completed++;
+                            if (completed === unearned.length) {
+                                callback(null, newAchievements);
+                            }
+                        }
+                    );
+                } else {
+                    completed++;
+                    if (completed === unearned.length) {
+                        callback(null, newAchievements);
+                    }
+                }
+            });
+        }
+    );
+};
+
+const calculateFileXP = (fileSize) => {
+    const baseXP = 10;
+    const sizeMultiplier = 0.000001; // 1 XP per MB
+    return Math.floor(baseXP + (fileSize * sizeMultiplier));
+};
+
 // File encryption/decryption functions
 const encrypt = (text) => {
     const iv = crypto.randomBytes(16);
@@ -316,10 +541,14 @@ app.post('/register', [
                     console.log('✅ User registered successfully:', email);
                     logAccess(this.lastID, '/register', 'POST', req.ip, req.get('User-Agent'), true);
                     
-                    res.status(201).json({
-                        message: 'Registration successful! Your account is pending admin approval.',
-                        userId: this.lastID,
-                        success: true
+                    // Initialize XP for new user
+                    const userId = this.lastID;
+                    initializeUserXP(userId, () => {
+                        res.status(201).json({
+                            message: 'Registration successful! Your account is pending admin approval.',
+                            userId: userId,
+                            success: true
+                        });
                     });
                 }
             );
@@ -933,7 +1162,7 @@ try {
             const fileHash = await calculateFileHash(req.file.path);
             
             // Encrypt the file
-            const encryptedPath = await encryptFile(req.file.path, ENCRYPTION_KEY);
+            const encryptedPath = await encrypt(req.file.path);
             
             // Store evidence metadata in database
             db.run(
@@ -963,12 +1192,35 @@ try {
                     logAudit(req.user.id, workspaceId, this.lastID, 'UPLOAD_EVIDENCE', 
                         `Uploaded: ${req.file.originalname}`, req);
 
-                    res.status(201).json({
-                        message: 'Evidence uploaded successfully',
-                        evidenceId: this.lastID,
-                        filename: req.file.originalname,
-                        fileHash: fileHash,
-                        size: req.file.size
+                    const evidenceId = this.lastID;
+                    
+                    // Initialize user XP if not exists
+                    initializeUserXP(req.user.id, () => {
+                        // Calculate and award XP for file upload
+                        const fileXP = calculateFileXP(req.file.size);
+                        
+                        awardXP(req.user.id, fileXP, 'file_upload', `File uploaded: ${req.file.originalname}`, evidenceId, null, (xpErr, xpResult) => {
+                            if (xpErr) {
+                                console.error('Error awarding XP:', xpErr);
+                            }
+
+                            // Check for new achievements
+                            checkAchievements(req.user.id, (achievementErr, newAchievements) => {
+                                if (achievementErr) {
+                                    console.error('Error checking achievements:', achievementErr);
+                                }
+
+                                res.status(201).json({
+                                    message: 'Evidence uploaded successfully',
+                                    evidenceId: evidenceId,
+                                    filename: req.file.originalname,
+                                    fileHash: fileHash,
+                                    size: req.file.size,
+                                    xp: xpResult || null,
+                                    newAchievements: newAchievements || []
+                                });
+                            });
+                        });
                     });
                 }
             );
@@ -1158,6 +1410,182 @@ const handleFileEndpoint = (fileType) => {
 app.all('/images', authenticateToken, handleFileEndpoint('images'));
 app.all('/documents', authenticateToken, handleFileEndpoint('documents'));
 app.all('/confidential', authenticateToken, handleFileEndpoint('confidential'));
+
+// Gamification endpoints
+
+// Get user profile with XP and achievements
+app.get('/profile/gamification', authenticateToken, (req, res) => {
+    // Initialize user XP if doesn't exist
+    initializeUserXP(req.user.id, () => {
+        // Get user XP and level
+        db.get(
+            "SELECT * FROM user_xp WHERE user_id = ?",
+            [req.user.id],
+            (err, xpData) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Failed to fetch user XP data' });
+                }
+
+                // Get user achievements
+                db.all(
+                    `SELECT a.*, ua.earned_at 
+                     FROM achievements a 
+                     JOIN user_achievements ua ON a.id = ua.achievement_id 
+                     WHERE ua.user_id = ? 
+                     ORDER BY ua.earned_at DESC`,
+                    [req.user.id],
+                    (achievementErr, achievements) => {
+                        if (achievementErr) {
+                            return res.status(500).json({ error: 'Failed to fetch achievements' });
+                        }
+
+                        // Get user progress towards unearned achievements
+                        db.all(
+                            `SELECT 
+                                a.*,
+                                (
+                                    CASE 
+                                        WHEN a.achievement_type = 'upload_count' THEN (
+                                            SELECT COUNT(*) FROM evidence WHERE uploaded_by = ?
+                                        )
+                                        WHEN a.achievement_type = 'total_size' THEN (
+                                            SELECT COALESCE(SUM(file_size), 0) FROM evidence WHERE uploaded_by = ?
+                                        )
+                                        WHEN a.achievement_type = 'large_file' THEN (
+                                            SELECT MAX(COALESCE(file_size, 0)) FROM evidence WHERE uploaded_by = ?
+                                        )
+                                        WHEN a.achievement_type = 'first_upload' THEN (
+                                            SELECT COUNT(*) FROM evidence WHERE uploaded_by = ?
+                                        )
+                                        ELSE 0
+                                    END
+                                ) as current_progress
+                             FROM achievements a 
+                             WHERE a.id NOT IN (
+                                 SELECT achievement_id FROM user_achievements WHERE user_id = ?
+                             )`,
+                            [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id],
+                            (progressErr, progressData) => {
+                                if (progressErr) {
+                                    return res.status(500).json({ error: 'Failed to fetch achievement progress' });
+                                }
+
+                                // Get recent XP transactions
+                                db.all(
+                                    "SELECT * FROM xp_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 10",
+                                    [req.user.id],
+                                    (transactionErr, transactions) => {
+                                        if (transactionErr) {
+                                            return res.status(500).json({ error: 'Failed to fetch XP transactions' });
+                                        }
+
+                                        res.json({
+                                            xp: xpData || { total_xp: 0, level: 1 },
+                                            achievements: achievements || [],
+                                            achievementProgress: progressData || [],
+                                            recentTransactions: transactions || []
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
+});
+
+// Get leaderboard
+app.get('/leaderboard', authenticateToken, (req, res) => {
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
+
+    db.all(
+        `SELECT 
+            u.id, u.name, u.surname, u.email, u.role,
+            COALESCE(ux.total_xp, 0) as total_xp, 
+            COALESCE(ux.level, 1) as level,
+            COUNT(ua.id) as achievement_count,
+            COUNT(e.id) as evidence_count,
+            COALESCE(SUM(e.file_size), 0) as total_upload_size
+        FROM users u
+        LEFT JOIN user_xp ux ON u.id = ux.user_id
+        LEFT JOIN user_achievements ua ON u.id = ua.user_id
+        LEFT JOIN evidence e ON u.id = e.uploaded_by
+        WHERE u.approved = 1
+        GROUP BY u.id
+        ORDER BY total_xp DESC, achievement_count DESC
+        LIMIT ? OFFSET ?`,
+        [limit, offset],
+        (err, leaderboard) => {
+            if (err) {
+                console.error('Leaderboard error:', err);
+                return res.status(500).json({ error: 'Failed to fetch leaderboard' });
+            }
+
+            // Get user's current rank
+            db.get(
+                `SELECT COUNT(*) + 1 as user_rank 
+                 FROM (
+                     SELECT u.id, COALESCE(ux.total_xp, 0) as total_xp 
+                     FROM users u 
+                     LEFT JOIN user_xp ux ON u.id = ux.user_id 
+                     WHERE u.approved = 1
+                 ) ranked 
+                 WHERE total_xp > COALESCE((SELECT total_xp FROM user_xp WHERE user_id = ?), 0)`,
+                [req.user.id],
+                (rankErr, rankResult) => {
+                    if (rankErr) {
+                        return res.status(500).json({ error: 'Failed to calculate user rank' });
+                    }
+
+                    res.json({
+                        leaderboard: leaderboard || [],
+                        userRank: rankResult?.user_rank || 1,
+                        total: leaderboard?.length || 0
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Get all achievements
+app.get('/achievements', authenticateToken, (req, res) => {
+    db.all(
+        "SELECT * FROM achievements ORDER BY xp_reward ASC",
+        [],
+        (err, achievements) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch achievements' });
+            }
+            res.json(achievements || []);
+        }
+    );
+});
+
+// Get user's recent XP transactions
+app.get('/xp-transactions', authenticateToken, (req, res) => {
+    const limit = parseInt(req.query.limit) || 20;
+    
+    db.all(
+        `SELECT xt.*, a.name as achievement_name, e.original_filename
+         FROM xp_transactions xt
+         LEFT JOIN achievements a ON xt.achievement_id = a.id
+         LEFT JOIN evidence e ON xt.evidence_id = e.id
+         WHERE xt.user_id = ?
+         ORDER BY xt.created_at DESC
+         LIMIT ?`,
+        [req.user.id, limit],
+        (err, transactions) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to fetch XP transactions' });
+            }
+            res.json(transactions || []);
+        }
+    );
+});
 
 // Analytics endpoint
 app.get('/analytics', authenticateToken, authorizeRoles(['Admin', 'Manager']), (req, res) => {
