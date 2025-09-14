@@ -1,28 +1,23 @@
-> *This document serves as a template for writing your team's details.*
-
-> Note that while members of a team may be from different institutions, the team may only compete under **one** of them - and will therefore have to decide which one to compete under in this instance.
-
 # Team Information
 
 ## ⚒️ Team Name
 ``` c
-// TODO: Fill-in the name of your team.
+Cruxx
 ```
 
 ## 👥 Members
 | Name     | Role                | Institution           | Discord Handle | Email |
 |----------|---------------------|-----------------------| -------------------|-------------|
-| **Name 1**   | Backend Developer   | University of Cape Town | name1 | <email1@gmail.com> |
-| **Name 2**   | Frontend Developer  | University of the Witwatersrand | name2 | <email2@gmail.com> |
-| **Name 3**   | Designer            | University of Johannesburg | name3 | <email3@gmail.com> |
-| **Name 4**   | Q.A Tester          | University of the Western Cape | name4 | <email4@gmail.com> |
+| **Capleton Chapfika**   | Backend Developer   | University of Pretoria| capleton_c | <capletonchapfika@gmail.com> |
+| **Tshegofatoso Mahlase**   | Frontend Developer  | University of Pretoria| tk.466 | <mahlasetshegofatso466@gmail.com> |
+| **Katlego Mositi**   | Designer            | University of Pretoria| thee.unknown.k | <mositikatlego@gmail.com> |
+| **Philemon Muleya**   | Q.A Tester          | University of Pretoria| _darthvador | <u23629810@tuks.co.za> |
 
 ## 🏫 Institution
 ``` c
-// TODO: Fill-in the name of the institution your
-// team is competing under.
+University of Pretoria
 ```
 
 ## 📧 Other Contact Info
-- GitHub Repo: <https://github.com/user-name/repo-name>
+- GitHub Repo: <https://github.com/PLM-18/Cruxx>
 - Other Info (if available): LinkedIn, Website, etc.
