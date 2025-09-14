@@ -17,7 +17,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '78a4afd45665c9af0e0cf0d41c0c4f638de30e38558ddcd42bd78ec897db3aaf'; // Must be 32 characters for AES-256
-console.log("ENCRYPTION_KEY", ENCRYPTION_KEY.toString('hex'));
 
 // Security middleware
 app.use(helmet());
@@ -34,7 +33,7 @@ const limiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: 4 * 60 * 1000, // 4 minutes
-    max: 9, // limit each IP to 9 requests per windowMs
+    max: 29, // limit each IP to 9 requests per windowMs
     message: 'Too many authentication attempts, please try again later.'
 });
 
@@ -1362,8 +1361,12 @@ const hasPermission = (userRole, fileType, action) => {
 
 // Generic file handling endpoint
 const handleFileEndpoint = (fileType) => {
+    
     return async (req, res) => {
+
         let action;
+        let filename = req.body.filename;
+        
         if (req.body.action)
             action = req.body.action
         else
@@ -1388,6 +1391,18 @@ const handleFileEndpoint = (fileType) => {
                             res.json(files);
                         }
                     );
+                    break;
+
+                case 'read':
+                    let fileId
+                    if(req.params.fileId)
+                        fileId = req.params.fileId
+                    else
+                        fileId = req.body.fileId;
+                    
+                    logAccess(req.user.id, `/document`, req.method, req.ip, req.get('User-Agent'), true);
+                    res.sendFile(path.resolve("uploads/evidence/" + filename));
+                    
                     break;
 
                 case 'create':
@@ -1449,6 +1464,7 @@ const handleFileEndpoint = (fileType) => {
 app.all('/images', authenticateToken, handleFileEndpoint('images'));
 app.all('/documents', authenticateToken, handleFileEndpoint('documents'));
 app.all('/confidential', authenticateToken, handleFileEndpoint('confidential'));
+app.all('/file', authenticateToken, handleFileEndpoint('file'));
 
 // Gamification endpoints
 

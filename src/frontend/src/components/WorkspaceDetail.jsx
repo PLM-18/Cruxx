@@ -329,7 +329,6 @@ export default function WorkspaceDetail() {
             link.remove()
             window.URL.revokeObjectURL(url)
         } catch (error) {
-            console.log("err", error)
             toast.error('Failed to read file')
         }
     }
@@ -517,7 +516,6 @@ export default function WorkspaceDetail() {
                                 className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105"
                             >
                                 {/* File Header */}
-                                {console.log("item",item)}
                                 
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
