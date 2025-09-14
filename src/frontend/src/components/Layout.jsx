@@ -58,7 +58,8 @@ export default function Layout() {
                 <div className="flex items-center justify-between h-16 px-4 border-b">
                     <div className="flex items-center space-x-2">
                         <Shield className="h-8 w-8 text-blue-600" />
-                        <span className="font-bold text-xl text-gray-900">SecureRUS</span>
+                        <span className="font-bold text-xl text-gray-900">Forensic-Link</span>
+
                     </div>
                     <button
                         className="lg:hidden"

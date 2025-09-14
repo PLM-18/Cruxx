@@ -2,27 +2,9 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { 
-    Plus, 
-    Search, 
-    Filter, 
-    Users, 
-    Calendar, 
-    Shield, 
-    Award, 
-    TrendingUp, 
-    FileText,
-    Settings,
-    Eye,
-    Edit,
-    Trash2,
-    Clock,
-    CheckCircle,
-    AlertTriangle,
-    Star,
-    Lock,
-    Activity,
-    UserCheck
+    Plus, Search, Filter, Users, Calendar, Shield, Award, TrendingUp, FileText, Settings, Eye, Edit, Trash2, Clock, CheckCircle, AlertTriangle, Star, Lock, Activity, UserCheck
 } from 'lucide-react'
+import WorkspaceAuthModal from './WorkspaceAuthModal'
 import toast from 'react-hot-toast'
 
 export default function WorkspaceManager() {
@@ -34,6 +16,9 @@ export default function WorkspaceManager() {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterStatus, setFilterStatus] = useState('all')
+    const [showAuthModal, setShowAuthModal] = useState(false)
+    const [selectedWorkspaceForAuth, setSelectedWorkspaceForAuth] = useState(null)
+    const [authLoading, setAuthLoading] = useState(false)
 
     const [newWorkspace, setNewWorkspace] = useState({
         name: '',
@@ -51,6 +36,47 @@ export default function WorkspaceManager() {
             fetchManagers()
         }
     }, [])
+
+    const handleWorkspaceClick = (workspace) => {
+        setSelectedWorkspaceForAuth(workspace)
+        setShowAuthModal(true)
+    }
+
+    // Add authentication function
+    const authenticateWorkspace = async (password) => {
+        if (!selectedWorkspaceForAuth) return
+        
+        setAuthLoading(true)
+        
+        try {
+            const email = user.email;
+            const response = await fetch(`http://localhost:3000/verify-credentials`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ password, email })
+            })
+            
+            const data = await response.json()
+            
+            if (response.ok && data.valid) {
+                // Authentication successful - proceed to workspace
+                setShowAuthModal(false)
+                setSelectedWorkspaceForAuth(null)
+                navigate(`/workspaces/${selectedWorkspaceForAuth.id}`)
+                toast.success('Workspace access granted')
+            } else {
+                toast.error('Invalid credentials')
+            }
+        } catch (error) {
+            console.error('Workspace authentication error:', error)
+            toast.error('Authentication failed')
+        } finally {
+            setAuthLoading(false)
+        }
+    }
 
     const fetchWorkspaces = async () => {
         try {
@@ -237,10 +263,10 @@ export default function WorkspaceManager() {
                                 onChange={(e) => setFilterStatus(e.target.value)}
                                 className="pl-10 pr-8 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
                             >
-                                <option value="all">All Status</option>
-                                <option value="Active">Active</option>
-                                <option value="Archived">Archived</option>
-                                <option value="Closed">Closed</option>
+                                <option style={{ color: 'black' }} value="all">All Status</option>
+                                <option style={{ color: 'black' }} value="Active">Active</option>
+                                <option style={{ color: 'black' }} value="Archived">Archived</option>
+                                <option style={{ color: 'black' }} value="Closed">Closed</option>
                             </select>
                         </div>
                     </div>
@@ -289,7 +315,7 @@ export default function WorkspaceManager() {
                             <div
                                 key={workspace.id}
                                 className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105 cursor-pointer"
-                                onClick={() => navigate(`/workspaces/${workspace.id}`)}
+                                onClick={() => handleWorkspaceClick(workspace)}
                             >
                                 {/* Header */}
                                 <div className="flex items-start justify-between mb-4">
@@ -444,6 +470,17 @@ export default function WorkspaceManager() {
                         </form>
                     </div>
                 </div>
+            )}
+            {showAuthModal && selectedWorkspaceForAuth && (
+                <WorkspaceAuthModal
+                    workspace={selectedWorkspaceForAuth}
+                    onAuthenticate={authenticateWorkspace}
+                    onClose={() => {
+                        setShowAuthModal(false)
+                        setSelectedWorkspaceForAuth(null)
+                    }}
+                    loading={authLoading}
+                />
             )}
         </div>
     )

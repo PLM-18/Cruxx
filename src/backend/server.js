@@ -347,6 +347,45 @@ const authorizeRoles = (roles) => {
     };
 };
 
+// Password verification endpoint (for re-authentication checks)
+app.post('/verify-credentials', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').notEmpty()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ valid: false });
+        }
+
+        const { email, password } = req.body;
+
+        db.get(
+            "SELECT id, password, approved FROM users WHERE email = ?",
+            [email],
+            async (err, user) => {
+                if (err) {
+                    logAccess(null, '/verify-credentials', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.status(500).json({ valid: false });
+                }
+                
+                if (!user || !user.approved) {
+                    logAccess(user?.id || null, '/verify-credentials', 'POST', req.ip, req.get('User-Agent'), false);
+                    return res.json({ valid: false });
+                }
+
+                const validPassword = await bcrypt.compare(password, user.password);
+                
+                logAccess(user.id, '/verify-credentials', 'POST', req.ip, req.get('User-Agent'), validPassword);
+                res.json({ valid: validPassword });
+            }
+        );
+    } catch (error) {
+        logAccess(null, '/verify-credentials', 'POST', req.ip, req.get('User-Agent'), false);
+        res.json({ valid: false });
+    }
+});
+
 // Audit logging function
 function logAudit(userId, workspaceId, evidenceId, action, details, req) {
     db.run(
