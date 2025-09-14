@@ -191,13 +191,47 @@ export default function WorkspaceManager() {
         )
     }
 
+
+    const handleReadFile = async (fileId, fileName) => {
+        try {
+            if (type === 'confidential') {
+                const response = await axios.post(`/${type}`, {
+                    action: 'read',
+                    fileId
+                })
+                setEditingFile({ id: fileId, name: fileName })
+                setEditContent(response.data.content)
+                setShowEditModal(true)
+            } else {
+                // For images and documents, download the file
+                const response = await axios.post(`/${type}`, {
+                    action: 'read',
+                    fileId
+                }, {
+                    responseType: 'blob'
+                })
+
+                const url = window.URL.createObjectURL(new Blob([response.data]))
+                const link = document.createElement('a')
+                link.href = url
+                link.setAttribute('download', fileName)
+                document.body.appendChild(link)
+                link.click()
+                link.remove()
+                window.URL.revokeObjectURL(url)
+            }
+        } catch (error) {
+            toast.error('Failed to read file')
+        }
+    }
+    
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-6">
+        <div className="min-h-screen ">
             {/* Header with Gamification */}
             <div className="max-w-7xl mx-auto mb-8">
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                        <div>
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 ">
+                        <div className=''>
                             <h1 className="text-3xl font-bold text-white mb-2">Investigation Workspaces</h1>
                             <p className="text-blue-100">
                                 {user?.role === 'Admin' 
@@ -210,7 +244,7 @@ export default function WorkspaceManager() {
                         </div>
                         
                         {/* Gamification Stats */}
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 ">
                             <div className="bg-green-500/20 rounded-xl p-4 border border-green-400/30">
                                 <div className="flex items-center gap-2 text-green-300">
                                     <Award className="h-5 w-5" />
@@ -240,7 +274,7 @@ export default function WorkspaceManager() {
             </div>
 
             {/* Controls */}
-            <div className="max-w-7xl mx-auto mb-6">
+            <div className="max-w-7xl mx-auto mb-6 ">
                 <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
                     <div className="flex gap-4">
                         {/* Search */}
@@ -251,7 +285,7 @@ export default function WorkspaceManager() {
                                 placeholder="Search workspaces..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="pl-10 pr-4 py-2 bg-gray/10 border border-black/20 rounded-lg text-gray/10 placeholder-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
 
@@ -261,7 +295,7 @@ export default function WorkspaceManager() {
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
-                                className="pl-10 pr-8 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                                className="pl-10 pr-8 py-2 bg-gray/10 border border-black/20 rounded-lg text-gray focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
                             >
                                 <option style={{ color: 'black' }} value="all">All Status</option>
                                 <option style={{ color: 'black' }} value="Active">Active</option>
@@ -285,12 +319,12 @@ export default function WorkspaceManager() {
             </div>
 
             {/* Workspaces Grid */}
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto ">
                 {filteredWorkspaces.length === 0 ? (
                     <div className="text-center py-12">
                         <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
                             <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-                            <h3 className="text-xl font-semibold text-white mb-2">No workspaces found</h3>
+                            <h3 className="text-xl font-semibold text-gray-500 mb-2">No workspaces found</h3>
                             <p className="text-slate-300 mb-6">
                                 {canCreateWorkspace 
                                     ? "Create your first investigation workspace to get started"
@@ -314,7 +348,7 @@ export default function WorkspaceManager() {
                         {filteredWorkspaces.map((workspace) => (
                             <div
                                 key={workspace.id}
-                                className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105 cursor-pointer"
+                                className="bg-gray-900 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-gray/100 transition-all duration-200 transform hover:scale-105 cursor-pointer"
                                 onClick={() => handleWorkspaceClick(workspace)}
                             >
                                 {/* Header */}
@@ -333,7 +367,7 @@ export default function WorkspaceManager() {
 
                                 {/* Content */}
                                 <div className="mb-4">
-                                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1">
+                                    <h3 className="text-lg font-semibold text-gray-500 mb-2 line-clamp-1">
                                         {workspace.name}
                                     </h3>
                                     {workspace.case_number && (

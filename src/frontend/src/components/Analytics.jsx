@@ -216,134 +216,13 @@ export default function Analytics() {
                 </div>
             </div>
 
-            {/* Anomalies Alert */}
-            {data.anomalies.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div className="flex items-start">
-                        <AlertTriangle className="h-6 w-6 text-red-600 mr-3 mt-1" />
-                        <div className="flex-1">
-                            <h3 className="text-lg font-medium text-red-900 mb-2">
-                                Security Anomalies Detected ({data.anomalies.length})
-                            </h3>
-                            <div className="space-y-2">
-                                {data.anomalies.slice(0, 3).map((anomaly, index) => (
-                                    <div key={index} className="flex items-center justify-between bg-white rounded p-3">
-                                        <div>
-                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(anomaly.severity)} mr-3`}>
-                                                {anomaly.severity}
-                                            </span>
-                                            <span className="text-sm font-medium text-gray-900">{anomaly.type}</span>
-                                            <p className="text-sm text-gray-600 mt-1">{anomaly.description}</p>
-                                        </div>
-                                        <span className="text-xs text-gray-500">
-                                            {formatTimestamp(anomaly.timestamp)}
-                                        </span>
-                                    </div>
-                                ))}
-                                {data.anomalies.length > 3 && (
-                                    <p className="text-sm text-red-700">
-                                        +{data.anomalies.length - 3} more anomalies detected
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+           
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Hourly Activity Chart */}
-                <div className="card p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Hourly Activity Pattern
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={hourlyData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="hour" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Line
-                                type="monotone"
-                                dataKey="requests"
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                dot={{ fill: '#3b82f6' }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-
-                {/* Endpoint Performance */}
-                <div className="card p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Endpoint Performance
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={endpointData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="endpoint" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="success" stackId="a" fill="#10b981" name="Success" />
-                            <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* Anomaly Distribution */}
-            {anomalyData.some(d => d.count > 0) && (
-                <div className="card p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Anomaly Distribution by Severity
-                    </h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={anomalyData.filter(d => d.count > 0)}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ severity, count }) => `${severity}: ${count}`}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="count"
-                                >
-                                    {anomalyData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-
-                        <div className="space-y-4">
-                            {anomalyData.filter(d => d.count > 0).map((item) => (
-                                <div key={item.severity} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center">
-                                        <div
-                                            className="w-4 h-4 rounded-full mr-3"
-                                            style={{ backgroundColor: item.color }}
-                                        />
-                                        <span className="font-medium text-gray-900">{item.severity} Severity</span>
-                                    </div>
-                                    <span className="text-2xl font-bold text-gray-700">{item.count}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
+          
             {/* Recent Activity Log */}
             <div className="card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Recent Activity Log
+                    Chain of Custody Trail
                 </h3>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">

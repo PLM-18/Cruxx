@@ -32,6 +32,7 @@ import {
     Crown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import axios from 'axios'
 
 export default function WorkspaceDetail() {
     const { id } = useParams()
@@ -308,6 +309,30 @@ export default function WorkspaceDetail() {
         )
     }
 
+    const handleReadFile = async (fileId, fileName, filename) => {        
+        try {
+            
+            const response = await axios.post(`/documents`, {
+                action: 'read',
+                fileId,
+                filename
+            }, {
+                responseType: 'blob'
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', fileName)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+        } catch (error) {
+            toast.error('Failed to read file')
+        }
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-6">
             {/* Header */}
@@ -491,21 +516,21 @@ export default function WorkspaceDetail() {
                                 className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-200 transform hover:scale-105"
                             >
                                 {/* File Header */}
+                                
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
                                         {getFileIcon(item.mime_type)}
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-white font-semibold truncate" title={item.original_filename}>
+                                            <h3 className="text-white font-semibold truncate max-w-[195px]" title={item.original_filename}>
                                                 {item.original_filename}
                                             </h3>
                                             <p className="text-xs text-slate-400">{formatFileSize(item.file_size)}</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button className="p-1 hover:bg-white/10 rounded">
-                                            <Eye className="h-4 w-4 text-slate-400" />
-                                        </button>
-                                        <button className="p-1 hover:bg-white/10 rounded">
+                                        <button className="p-1 hover:bg-white/10 rounded"
+                                            onClick={() => { handleReadFile(item.id, item.original_filename, item.filename)}}
+                                        >
                                             <Download className="h-4 w-4 text-slate-400" />
                                         </button>
                                     </div>
