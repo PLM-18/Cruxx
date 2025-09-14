@@ -157,7 +157,7 @@ When you first access ForensicLink, use the default admin credentials:
 ## 🎥 Demo
 
 Check out our demonstration materials:
-- [Demo Video](../demo/demo.mp4) - Complete walkthrough of ForensicLink features
+- [Demo Video](https://drive.google.com/file/d/12hH_2LJp5bQpr5zxluw-y2hXMyZ9vnMJ/view?usp=sharing) - Complete walkthrough of ForensicLink features
 - [Demo Presentation](../demo/demo.pptx) - Overview slides and feature highlights
 
 ---
